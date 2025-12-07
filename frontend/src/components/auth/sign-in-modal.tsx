@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSignIn } from "@clerk/nextjs";
+import { useSignIn } from "@clerk/clerk-react";
 import {
   Dialog,
   DialogContent,
@@ -110,7 +110,7 @@ export function SignInModal({ children }: SignInModalProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => {
+    <Dialog open={open} onOpenChange={(isOpen: boolean) => {
       setOpen(isOpen);
       if (!isOpen) {
         setPendingVerification(false);
@@ -123,7 +123,7 @@ export function SignInModal({ children }: SignInModalProps) {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-center">
-            {pendingVerification ? "Check your email" : "Welcome back"}
+            {pendingVerification ? "Check your email" : "Sign In"}
           </DialogTitle>
           <DialogDescription className="text-center">
             {pendingVerification
@@ -142,7 +142,7 @@ export function SignInModal({ children }: SignInModalProps) {
                 disabled={isLoading}
                 className="w-full"
               >
-                <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+                <svg className="h-4 w-4" viewBox="0 0 24 24">
                   <path
                     fill="currentColor"
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"

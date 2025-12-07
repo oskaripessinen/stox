@@ -1,14 +1,21 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import { clerkMiddleware } from "@clerk/express";
+import routes from "./routes";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:3000", "http://localhost:3001"],
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(clerkMiddleware());
 
-app.get("/api/hello", (_req, res) => {
-  res.json({ message: "Hello from backend!" });
-});
+app.use("/api", routes);
 
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));

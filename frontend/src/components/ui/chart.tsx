@@ -55,7 +55,7 @@ function ChartContainer({
         data-slot="chart"
         data-chart={chartId}
         className={cn(
-          "[&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border flex aspect-video justify-center text-xs [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-hidden [&_.recharts-sector]:outline-hidden [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-surface]:outline-hidden",
+          "[&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border flex aspect-video justify-center text-xs [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-hidden [&_.recharts-sector]:outline-hidden [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-surface]:outline-hidden [&_.recharts-curve]:[shape-rendering:geometricPrecision] [&_.recharts-curve]:[stroke-linecap:round] [&_.recharts-curve]:[stroke-linejoin:round] [&_.recharts-line]:[shape-rendering:geometricPrecision] [&_.recharts-surface path]:[shape-rendering:geometricPrecision]",
           className
         )}
         {...props}
@@ -163,6 +163,21 @@ function ChartTooltipContent({
     config,
     labelKey,
   ])
+
+  const formattedLabel = React.useMemo(() => {
+    if (!label) return null;
+    try {
+      const date = typeof label === "number" ? new Date(label) : new Date(String(label));
+      if (isNaN(date.getTime())) return String(label);
+      const hasTime = date.getHours() !== 0 || date.getMinutes() !== 0 || date.getSeconds() !== 0;
+      const opts: Intl.DateTimeFormatOptions = hasTime
+        ? { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }
+        : { month: "short", day: "numeric" };
+      return date.toLocaleString(undefined, opts);
+    } catch (e) {
+      return String(label);
+    }
+  }, [label]);
 
   if (!active || !payload?.length) {
     return null

@@ -19,14 +19,20 @@ services:
       - .env
     environment:
       - PORT=3001
-      - VALKEY_HOST=valkey
-      - VALKEY_PORT=6379
+      - VALKEY_HOST=${VALKEY_HOST:-valkey}
+      - VALKEY_PORT=${VALKEY_PORT:-6379}
+      - VALKEY_TLS=${VALKEY_TLS:-false}
     depends_on:
-      - valkey
+      valkey:
+        condition: service_started
+        required: false
     restart: unless-stopped
 
+  # Local Valkey for development - not used in production (AWS ElastiCache)
   valkey:
     image: valkey/valkey:latest
+    profiles:
+      - dev
     ports:
       - "6379:6379"
     volumes:

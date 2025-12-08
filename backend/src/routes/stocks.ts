@@ -8,6 +8,8 @@ import {
 } from "../lib/alpaca";
 import { getAllIndices, searchSymbols } from "../lib/yahoo";
 import { getCompanyProfile } from "../lib/finnhub";
+import { requireAuth } from "../middleware/auth";
+import { deleteCache } from "../lib/cache";
 import { getCache, setCache, cacheKeys, TTL } from "../lib/cache";
 
 const router = Router();
@@ -86,27 +88,88 @@ router.get("/indices", async (req: Request, res: Response) => {
       return;
     }
     
-    const indicesData = await getAllIndices();
-
-    const result = {
-      indices: indicesData.map(({ quote, chart }) => ({
-        id: quote.symbol,
-        name: quote.name,
-        symbol: quote.symbol,
-        value: quote.price,
-        change: quote.change,
-        changePercent: quote.changePercent,
-        up: quote.changePercent >= 0,
-        data: chart.timestamps.map((t, i) => ({
-          time: new Date(t * 1000).toISOString(),
-          value: chart.closes[i],
-        })),
-      })),
+    const indexToEtf: Record<string, { index: string; etf: string; name: string }> = {
+      '^GSPC': { index: '^GSPC', etf: 'SPY', name: 'S&P 500' },
+      '^IXIC': { index: '^IXIC', etf: 'QQQ', name: 'NASDAQ' },
+      '^DJI':  { index: '^DJI',  etf: 'DIA', name: 'Dow Jones' },
+      '^RUT':  { index: '^RUT',  etf: 'IWM', name: 'Russell 2000' },
     };
-    
-    // Cache results
-    await setCache(cacheKey, result, TTL.INDICES);
 
+
+    const indicesData = await getAllIndices();
+    const etfSymbols = Object.values(indexToEtf).map(i => i.etf);
+    const etfQuotes = await getMultipleQuotes(etfSymbols);
+    console.log("Fetched ETF quotes for indices:", etfQuotes);
+    const intradayStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  
+    const candidateTimeframes = [
+      { tf: '1Min', limit: 390, start: intradayStart },
+      { tf: '5Min', limit: 78, start: intradayStart },
+      { tf: '15Min', limit: 26, start: intradayStart },
+      { tf: '1Hour', limit: 6, start: intradayStart },
+      { tf: '1Day', limit: 1, start: undefined },
+    ];
+
+    async function fetchBestEtfBars(symbol: string) {
+      for (const c of candidateTimeframes) {
+        const cacheKeyBars = cacheKeys.bars(symbol, c.tf, c.limit);
+        const cachedBars = await getCache<any>(cacheKeyBars);
+        if (cachedBars && Array.isArray(cachedBars.bars) && cachedBars.bars.length > 0) {
+          console.log(`Cache HIT for ${symbol} ${c.tf}:${c.limit} => ${cachedBars.bars.length}`);
+          return cachedBars.bars.map((b: any) => ({ Timestamp: b.timestamp, ClosePrice: b.close, OpenPrice: b.open, HighPrice: b.high, LowPrice: b.low, Volume: b.volume, VWAP: b.vwap }));
+        }
+        const bars = await getBars(symbol, c.tf, c.start, undefined, c.limit);
+        if (bars && bars.length > 0) {
+          console.log(`Fetched ${bars.length} bars for ${symbol} at ${c.tf}`);
+          await setCache(cacheKeyBars, {
+            symbol: symbol.toUpperCase(),
+            timeframe: c.tf,
+            bars: bars.map((bar: any) => ({ timestamp: bar.Timestamp, open: bar.OpenPrice, high: bar.HighPrice, low: bar.LowPrice, close: bar.ClosePrice, volume: bar.Volume, vwap: bar.VWAP })),
+          }, TTL.BARS);
+          return bars;
+        }
+      }
+      return [];
+    }
+
+    const etfBarsList = await Promise.all(etfSymbols.map((s) => fetchBestEtfBars(s)));
+    console.log('Fetched ETF bars lengths per symbol:', etfBarsList.map(b => (Array.isArray(b) ? b.length : 0)));
+
+    const indices = indicesData.map(({ quote, chart }, indx) => {
+      const etfInfo = indexToEtf[quote.symbol];
+      if (!etfInfo) {
+        console.warn(`Unknown index symbol from Yahoo: ${quote.symbol} - no ETF mapping available.`);
+        return {
+          id: quote.symbol,
+          name: quote.name || quote.symbol,
+          symbol: quote.symbol,
+          value: quote.price, 
+          change: quote.change ?? null,
+          changePercent: quote.changePercent ?? null,
+          up: (quote.changePercent ?? 0) >= 0,
+          data: [],
+        };
+      }
+      const etfQuote = etfQuotes.find(q => q.symbol === etfInfo.etf);
+      const bars = etfBarsList[etfSymbols.indexOf(etfInfo.etf)] || [];
+      if (!bars.length) {
+        console.log(`No ETF bars found for ${etfInfo.etf} - chart will be empty`);
+      }
+
+      return {
+        id: quote.symbol,
+        name: etfInfo.name,
+        symbol: quote.symbol,
+        value: quote.price, 
+        change: quote.change ?? null,
+        changePercent: quote.changePercent ?? null,
+        up: (quote.changePercent ?? 0) >= 0,
+        data: bars.length ? bars.map((bar: any) => ({ time: bar.Timestamp, value: bar.ClosePrice })) : [],
+      };
+    });
+
+    const result = { indices };
+    await setCache(cacheKey, result, TTL.INDICES);
     res.json(result);
   } catch (error) {
     console.error("Error fetching indices:", error);
@@ -115,8 +178,103 @@ router.get("/indices", async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/stocks/quotes
- * Get quotes for multiple stocks
+ * POST /api/stocks/indices/refresh
+ * Refresh indices cache (requires auth)
+ */
+router.post("/indices/refresh", requireAuth, async (req: Request, res: Response) => {
+  try {
+    // Delete existing cache
+    await deleteCache(cacheKeys.indices());
+    // Trigger fetch by calling the same logic as GET /indices
+    // (call getAllIndices and construct indices result)
+    const indexToEtf: Record<string, { index: string; etf: string; name: string }> = {
+      '^GSPC': { index: '^GSPC', etf: 'SPY', name: 'S&P 500' },
+      '^IXIC': { index: '^IXIC', etf: 'QQQ', name: 'NASDAQ' },
+      '^DJI':  { index: '^DJI',  etf: 'DIA', name: 'Dow Jones' },
+      '^RUT':  { index: '^RUT',  etf: 'IWM', name: 'Russell 2000' },
+    };
+
+    const indicesData = await getAllIndices();
+    const etfSymbols = Object.values(indexToEtf).map(i => i.etf);
+    const etfQuotes = await getMultipleQuotes(etfSymbols);
+    const intradayStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const candidateTimeframes = [
+      { tf: '1Min', limit: 390, start: intradayStart },
+      { tf: '5Min', limit: 78, start: intradayStart },
+      { tf: '15Min', limit: 26, start: intradayStart },
+      { tf: '1Hour', limit: 6, start: intradayStart },
+      { tf: '1Day', limit: 1, start: undefined },
+    ];
+
+    async function fetchBestEtfBars(symbol: string) {
+      for (const c of candidateTimeframes) {
+        const cacheKeyBars = cacheKeys.bars(symbol, c.tf, c.limit);
+        const cachedBars = await getCache<any>(cacheKeyBars);
+        if (cachedBars && Array.isArray(cachedBars.bars) && cachedBars.bars.length > 0) {
+          console.log(`Cache HIT for ${symbol} ${c.tf}:${c.limit} => ${cachedBars.bars.length}`);
+          return cachedBars.bars.map((b: any) => ({ Timestamp: b.timestamp, ClosePrice: b.close, OpenPrice: b.open, HighPrice: b.high, LowPrice: b.low, Volume: b.volume, VWAP: b.vwap }));
+        }
+        const bars = await getBars(symbol, c.tf, c.start, undefined, c.limit);
+        if (bars && bars.length > 0) {
+          console.log(`Fetched ${bars.length} bars for ${symbol} at ${c.tf}`);
+          await setCache(cacheKeyBars, {
+            symbol: symbol.toUpperCase(),
+            timeframe: c.tf,
+            bars: bars.map((bar: any) => ({ timestamp: bar.Timestamp, open: bar.OpenPrice, high: bar.HighPrice, low: bar.LowPrice, close: bar.ClosePrice, volume: bar.Volume, vwap: bar.VWAP })),
+          }, TTL.BARS);
+          return bars;
+        }
+      }
+      return [];
+    }
+
+    const etfBarsList = await Promise.all(etfSymbols.map((s) => fetchBestEtfBars(s)));
+
+    const indices = indicesData.map(({ quote, chart }, idx) => {
+      const etfInfo = indexToEtf[quote.symbol];
+      if (!etfInfo) {
+          console.warn(`Unknown index symbol from Yahoo: ${quote.symbol} - no ETF mapping available.`);
+          return {
+          id: quote.symbol,
+          name: quote.name || quote.symbol,
+          symbol: quote.symbol,
+          value: quote.price,
+          change: quote.change ?? null,
+          changePercent: quote.changePercent ?? null,
+          up: (quote.changePercent ?? 0) >= 0,
+            data: [],
+        };
+      }
+      const etfQuote = etfQuotes.find(q => q.symbol === etfInfo.etf);
+      const bars = etfBarsList[etfSymbols.indexOf(etfInfo.etf)] || [];
+      if (!bars.length) {
+        console.log(`No ETF bars found for ${etfInfo.etf} during refresh - chart will be empty`);
+      }
+      return {
+        id: quote.symbol,
+        name: etfInfo.name,
+        symbol: quote.symbol,
+        value: quote.price,
+        change: quote.change ?? null,
+        changePercent: quote.changePercent ?? null,
+        up: (quote.changePercent ?? 0) >= 0,
+        data: (bars.length ? bars.map((bar: any) => ({ time: bar.Timestamp, value: bar.ClosePrice })) : []),
+      };
+    });
+
+    const result = { indices };
+    // Update cache
+    await setCache(cacheKeys.indices(), result, TTL.INDICES);
+    res.json(result);
+  } catch (error) {
+    console.error("Error refreshing indices:", error);
+    res.status(500).json({ error: "Failed to refresh indices" });
+  }
+});
+
+/**
+         // Map bars to time/value pairs; for intraday bars keep ISO timestamps, for daily bars keep date strings
+         data: bars.length ? bars.map((bar: any) => ({ time: bar.Timestamp, value: bar.ClosePrice })) : fallbackChartData,
  * Body: { symbols: ["AAPL", "GOOGL", "MSFT"] }
  */
 router.post("/quotes", async (req: Request, res: Response) => {

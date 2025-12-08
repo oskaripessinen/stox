@@ -1,12 +1,16 @@
 import Redis from "ioredis";
 
-// Valkey/Redis connection
+// Valkey/Redis connection (supports AWS ElastiCache)
+const useTls = process.env.VALKEY_TLS === "true";
+
 const redis = new Redis({
   host: process.env.VALKEY_HOST || "localhost",
   port: parseInt(process.env.VALKEY_PORT || "6379"),
   password: process.env.VALKEY_PASSWORD || undefined,
+  tls: useTls ? {} : undefined, // Enable TLS for AWS ElastiCache
   maxRetriesPerRequest: 3,
   lazyConnect: true,
+  connectTimeout: 10000,
 });
 
 let isConnected = false;
@@ -20,7 +24,8 @@ redis.on("error", (err) => {
 
 redis.on("connect", () => {
   isConnected = true;
-  console.log("✓ Connected to Valkey cache");
+  const host = process.env.VALKEY_HOST || "localhost";
+  console.log(`Connected to Valkey cache (${host}${useTls ? " with TLS" : ""})`);
 });
 
 // Try to connect

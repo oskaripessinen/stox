@@ -5,6 +5,10 @@ import { SignedIn, SignedOut } from "@clerk/clerk-react";
 import { SignInModal } from "@/components/auth/sign-in-modal";
 import { Header } from "@/components/layout/header";
 import { StockProfileDialog } from "@/components/stocks/stock-profile-dialog";
+import IndexCards from "@/components/market/IndexCards";
+import Movers from "@/components/market/Movers";
+import StockList from "@/components/market/StockList";
+import Watchlist from "@/components/market/Watchlist";
 import {
   Card,
   CardContent,
@@ -178,303 +182,28 @@ export default function Home() {
             <p className="text-sm text-muted-foreground">Real-time market data and trends</p>
           </div>
 
-          {/* Index Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {indicesLoading ? (
-              // Loading skeleton
-              Array.from({ length: 4 }).map((_, i) => (
-                <Card key={i} className="py-4">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <div className="h-4 w-20 bg-muted animate-pulse rounded" />
-                      <div className="h-5 w-16 bg-muted animate-pulse rounded-full" />
-                    </div>
-                    <div className="h-7 w-24 bg-muted animate-pulse rounded mt-2" />
-                  </CardHeader>
-                  <CardContent className="pb-2">
-                    <div className="h-12 w-full bg-muted animate-pulse rounded" />
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              indices.map((index) => (
-                <Card key={index.id} className="py-4">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardDescription>{index.name}</CardDescription>
-                      <span
-                        className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                          index.up
-                            ? "bg-chart-3/20 text-chart-3"
-                            : "bg-destructive/20 text-destructive"
-                        }`}
-                      >
-                        {formatChange(index.changePercent)}
-                      </span>
-                    </div>
-                    <CardTitle className="text-xl">{formatPoints(index.value)}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pb-2">
-                    <div className="h-12 w-full">
-                      {index.data.length > 0 ? (
-                        <svg viewBox="0 0 100 30" className="w-full h-full" preserveAspectRatio="none">
-                          <defs>
-                            <linearGradient id={`fill-${index.id}`} x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor={index.up ? "var(--chart-3)" : "var(--destructive)"} stopOpacity={0.3} />
-                              <stop offset="100%" stopColor={index.up ? "var(--chart-3)" : "var(--destructive)"} stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                          <path
-                            d={(() => {
-                              const values = index.data.map((d) => d.value);
-                              const min = Math.min(...values);
-                              const max = Math.max(...values);
-                              const range = max - min || 1;
-                              const points = values.map((v, i) => {
-                                const x = (i / (values.length - 1)) * 100;
-                                const y = 30 - ((v - min) / range) * 28;
-                                return `${i === 0 ? "M" : "L"}${x},${y}`;
-                              });
-                              return points.join(" ");
-                            })()}
-                            fill="none"
-                            stroke={index.up ? "var(--chart-3)" : "var(--destructive)"}
-                            strokeWidth="2"
-                          />
-                          <path
-                            d={(() => {
-                              const values = index.data.map((d) => d.value);
-                              const min = Math.min(...values);
-                              const max = Math.max(...values);
-                              const range = max - min || 1;
-                              const points = values.map((v, i) => {
-                                const x = (i / (values.length - 1)) * 100;
-                                const y = 30 - ((v - min) / range) * 28;
-                                return `${i === 0 ? "M" : "L"}${x},${y}`;
-                              });
-                              return points.join(" ") + ` L100,30 L0,30 Z`;
-                            })()}
-                            fill={`url(#fill-${index.id})`}
-                          />
-                        </svg>
-                      ) : (
-                        <div className="h-full flex items-center justify-center text-muted-foreground text-xs">
-                          No chart data
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
+          <IndexCards indices={indices} loading={indicesLoading} />
 
           {/* Top Gainers, Losers & Watchlist */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-            {/* Top Gainers */}
-            <Card>
-              <CardHeader className="">
-                <div className="flex items-center gap-2">
-                  <ChevronUp strokeWidth={3} className="h-5 w-5 text-chart-3" />
-                  <CardTitle className="text-base mb-0 pb-0">Top Gainers</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-1">
-                {moversLoading ? (
-                  <div className="flex justify-center py-4">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  </div>
-                ) : topGainers.length > 0 ? (
-                  topGainers.map((stock) => (
-                    <div
-                      key={stock.symbol}
-                      className="flex items-center justify-between p-1 px-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() => {
-                        setSelectedStock(stock.symbol);
-                        setProfileDialogOpen(true);
-                      }}
-                    >
-                      <div>
-                        <p className="font-semibold text-foreground text-sm">{stock.symbol}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-foreground text-sm">{formatPrice(stock.price)}</p>
-                        <p className="text-xs font-medium text-chart-3">
-                          +{stock.change.toFixed(2)} ({formatChange(stock.percent_change)})
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-2">No gainers</p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Top Losers */}
-            <Card>
-              <CardHeader className="">
-                <div className="flex items-center gap-2">
-                  <ChevronDown strokeWidth={3} className="h-5 w-5 text-destructive" /> 
-                  <CardTitle className="text-base">Top Losers</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-1">
-                {moversLoading ? (
-                  <div className="flex justify-center py-4">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  </div>
-                ) : topLosers.length > 0 ? (
-                  topLosers.map((stock) => (
-                    <div
-                      key={stock.symbol}
-                      className="flex items-center justify-between p-1 px-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() => {
-                        setSelectedStock(stock.symbol);
-                        setProfileDialogOpen(true);
-                      }}
-                    >
-                      <div>
-                        <p className="font-semibold text-foreground text-sm">{stock.symbol}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-foreground text-sm">{formatPrice(stock.price)}</p>
-                        <p className="text-xs font-medium text-destructive">
-                          {stock.change.toFixed(2)} ({formatChange(stock.percent_change)})
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-2">No losers</p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Watchlist */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Star className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-base">Watchlist</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="flex flex-col items-center justify-center py-4">
-                <SignedOut>
-                  <p className="text-sm text-muted-foreground text-center mb-3">
-                    Sign in to track your favorite stocks
-                  </p>
-                  <SignInModal>
-                    <Button size="sm">Sign in</Button>
-                  </SignInModal>
-                </SignedOut>
-                <SignedIn>
-                  <p className="text-sm text-muted-foreground text-center">
-                    Your watchlist is empty
-                  </p>
-                </SignedIn>
-              </CardContent>
-            </Card>
+            <div className="lg:col-span-2">
+              <Movers topGainers={topGainers} topLosers={topLosers} loading={moversLoading} onSelect={(s) => { setSelectedStock(s); setProfileDialogOpen(true); }} />
+            </div>
+            <div>
+              <Watchlist />
+            </div>
           </div>
 
           {/* Stock List */}
-          <Card>
-              <CardHeader>
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <CardTitle>Stocks</CardTitle>
-                    <CardDescription>Browse stocks by index</CardDescription>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    {/* Index selector */}
-                    <div className="flex items-center gap-2">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" className="h-9 px-3 gap-2">
-                            {selectedIndex === "sp500" ? "S&P 500" : selectedIndex === "nasdaq" ? "NASDAQ" : "DOW JONES"}
-                            <ChevronDown strokeWidth={2} className="h-4 w-4 opacity-50" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setSelectedIndex("sp500")}>
-                            S&P 500
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setSelectedIndex("nasdaq")}>
-                            NASDAQ
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setSelectedIndex("dow")}>
-                            DOW JONES
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {/* Table header */}
-                <div className="hidden md:grid grid-cols-4 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b border-border">
-                  <button
-                    onClick={() => handleSort("symbol")}
-                    className="flex items-center hover:text-foreground transition-colors text-left"
-                  >
-                    Symbol
-                    <SortIndicator column="symbol" />
-                  </button>
-                  <button
-                    onClick={() => handleSort("price")}
-                    className="flex items-center justify-end hover:text-foreground transition-colors"
-                  >
-                    Price
-                    <SortIndicator column="price" />
-                  </button>
-                  <button
-                    onClick={() => handleSort("change")}
-                    className="flex items-center justify-end hover:text-foreground transition-colors"
-                  >
-                    Change
-                    <SortIndicator column="change" />
-                  </button>
-                  <button
-                    onClick={() => handleSort("volume")}
-                    className="flex items-center justify-end hover:text-foreground transition-colors"
-                  >
-                    Volume
-                    <SortIndicator column="volume" />
-                  </button>
-                </div>
-                {/* Stock rows */}
-                <div className="divide-y divide-border">
-                  {loading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : error ? (
-                    <div className="text-center py-8 text-destructive">{error}</div>
-                  ) : sortedStocks.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">No stocks found</div>
-                  ) : (
-                    sortedStocks.map((stock) => (
-                      <div
-                        key={stock.symbol}
-                        className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer"
-                        onClick={() => {
-                          setSelectedStock(stock.symbol);
-                          setProfileDialogOpen(true);
-                        }}
-                      >
-                        <div className="font-semibold text-foreground">{stock.symbol}</div>
-                        <div className="text-right font-medium">{formatPrice(stock.price)}</div>
-                        <div className={`text-right font-medium ${stock.changePercent >= 0 ? "text-chart-3" : "text-destructive"}`}>
-                          {formatChange(stock.changePercent)}
-                        </div>
-                        <div className="text-right text-muted-foreground text-sm hidden md:block">{formatVolume(stock.volume)}</div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+          <StockList
+            sortedStocks={sortedStocks}
+            loading={loading}
+            error={error}
+            onStockClick={(s) => { setSelectedStock(s); setProfileDialogOpen(true); }}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSort={(col) => handleSort(col)}
+          />
         </div>
 
         {/* Stock Profile Dialog */}

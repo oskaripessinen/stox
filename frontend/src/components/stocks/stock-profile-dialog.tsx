@@ -7,9 +7,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Loader2, ExternalLink, Globe, Building2, MapPin, Calendar, TrendingUp, DollarSign } from "lucide-react";
 import { getStockProfile, getStockQuote, getStockHistory, StockProfile, StockQuote, StockBar, formatPrice, formatChange, formatMarketCap, formatVolume } from "@/lib/api";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import * as Recharts from "recharts";
 
 interface StockProfileDialogProps {
   symbol: string | null;
@@ -40,7 +41,8 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
   const [chartLoading, setChartLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedTimeframe, setSelectedTimeframe] = useState<TimeframeOption>(TIMEFRAME_OPTIONS[2]); // Default 1M
-  const [hoverData, setHoverData] = useState<{ index: number; x: number; y: number; price: number; date: string } | null>(null);
+  
+  const [logoLoaded, setLogoLoaded] = useState(false);
   const chartRef = useRef<HTMLDivElement>(null);
 
   // Fetch profile and quote
@@ -50,7 +52,7 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
       setQuote(null);
       setBars([]);
       setError(null);
-      setHoverData(null);
+      setLogoLoaded(false);
       return;
     }
 
@@ -118,7 +120,33 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
     };
   }, [bars]);
 
+  // Format bar times for tooltip/X axis depending on selected timeframe
+  const formatBarTime = (ts: string | number) => {
+    const d = typeof ts === "number" ? new Date(ts) : new Date(String(ts));
+    if (isNaN(d.getTime())) return String(ts);
+    // If timeframe is intraday (hours/minutes) show only time HH:MM
+    if (selectedTimeframe.label.includes("1D")) {
+      return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+    }
+    if( selectedTimeframe.label.includes("1W")) {
+      // For 1 Day timeframe with limit up to 31 days, show Month and Day
+      return d.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit" });
+    }
+    // Otherwise show a short date without year
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  };
+
+  // formattedBars is no longer needed since we format times via tickFormatter and tooltip
+
   const isPositive = (quote?.changePercent || 0) >= 0;
+
+  // Compute Y domain for the chart so small changes are more visible (same logic as IndexCards)
+  const valuesForDomain = bars.map((b) => b.close);
+  const domainMin = valuesForDomain.length ? Math.min(...valuesForDomain) : 0;
+  const domainMax = valuesForDomain.length ? Math.max(...valuesForDomain) : 0;
+  const domainRange = Math.abs(domainMax - domainMin);
+  const domainPadding = domainRange > 0 ? Math.max(domainRange * 0.15, Math.abs(domainMax) * 0.01) : Math.max(Math.abs(domainMax) * 0.01, 1);
+  const yDomain: Array<number | string> = [domainMin - domainPadding, domainMax + domainPadding];
 
   // Generate SVG path for chart
   const chartPath = useMemo(() => {
@@ -158,52 +186,7 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
     return { linePath, areaPath, min, max, points, openY, openPrice, height, padding, range, priceLines };
   }, [bars]);
 
-  // Handle mouse move on chart - smooth interpolation
-  const handleChartMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!chartRef.current || bars.length === 0 || !chartPath.points) return;
-    
-    const rect = chartRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const relativeX = Math.max(0, Math.min(1, x / rect.width));
-    
-    // Calculate exact position (can be between data points)
-    const exactIndex = relativeX * (bars.length - 1);
-    const lowerIndex = Math.floor(exactIndex);
-    const upperIndex = Math.min(lowerIndex + 1, bars.length - 1);
-    const fraction = exactIndex - lowerIndex;
-    
-    // Interpolate price between two nearest points
-    const lowerPrice = bars[lowerIndex].close;
-    const upperPrice = bars[upperIndex].close;
-    const interpolatedPrice = lowerPrice + (upperPrice - lowerPrice) * fraction;
-    
-    // Interpolate Y position
-    const lowerY = chartPath.points[lowerIndex].y;
-    const upperY = chartPath.points[upperIndex].y;
-    const interpolatedY = lowerY + (upperY - lowerY) * fraction;
-    
-    // Get nearest bar for date display
-    const nearestIndex = Math.round(exactIndex);
-    const nearestBar = bars[nearestIndex];
-    
-    setHoverData({
-      index: nearestIndex,
-      x: relativeX * 100,
-      y: interpolatedY,
-      price: interpolatedPrice,
-      date: new Date(nearestBar.timestamp).toLocaleDateString("en-US", {
-        day: "numeric",
-        month: "short",
-        year: selectedTimeframe.label === "1D" ? undefined : "numeric",
-        hour: selectedTimeframe.label === "1D" || selectedTimeframe.label === "1W" ? "2-digit" : undefined,
-        minute: selectedTimeframe.label === "1D" || selectedTimeframe.label === "1W" ? "2-digit" : undefined,
-      }),
-    });
-  };
-
-  const handleChartMouseLeave = () => {
-    setHoverData(null);
-  };
+  // Hover interactions handled by Recharts tooltip/activeDot
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -211,14 +194,21 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             {profile?.logo && (
-              <img
-                src={profile.logo}
-                alt={`${profile.name} logo`}
-                className="w-12 h-12 rounded-lg object-contain bg-white p-1"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                }}
-              />
+              <div className="relative w-12 h-12">
+                {!logoLoaded && (
+                  <div className="absolute inset-0 bg-muted animate-pulse rounded-lg" />
+                )}
+                <img
+                  src={profile.logo}
+                  alt={`${profile.name} logo`}
+                  className={`w-12 h-12 rounded-lg object-contain transition-opacity duration-200 ${logoLoaded ? 'opacity-100' : 'opacity-0'}`}
+                  onLoad={() => setLogoLoaded(true)}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                    setLogoLoaded(true);
+                  }}
+                />
+              </div>
             )}
             <div>
               <span className="text-2xl">{symbol}</span>
@@ -347,105 +337,44 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
                 {/* Chart area */}
                 <div 
                   ref={chartRef}
-                  className="relative h-64 flex-1 rounded-lg overflow-hidden cursor-crosshair"
-                  onMouseMove={handleChartMouseMove}
-                  onMouseLeave={handleChartMouseLeave}
+                    className="relative h-64 flex-1 rounded-lg overflow-hidden"
                 >
                   {chartLoading ? (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     </div>
                   ) : bars.length > 0 ? (
-                    <>
-                    
-                    <svg
-                      viewBox="0 0 100 100"
-                      className="w-full h-full"
-                      preserveAspectRatio="none"
-                    >
-                      <defs>
-                        <linearGradient id={`chart-gradient-${symbol}`} x1="0" y1="0" x2="0" y2="1">
-                          <stop
-                            offset="0%"
-                            stopColor={chartStats?.isPositive ? "var(--chart-3)" : "var(--destructive)"}
-                            stopOpacity={0.3}
-                          />
-                          <stop
-                            offset="100%"
-                            stopColor={chartStats?.isPositive ? "var(--chart-3)" : "var(--destructive)"}
-                            stopOpacity={0}
-                          />
-                        </linearGradient>
-                      </defs>
-                      
-                      {/* Horizontal price grid lines */}
-                      {chartPath.priceLines?.map((line, i) => (
-                        <line
-                          key={i}
-                          x1="0"
-                          y1={line.y}
-                          x2="100"
-                          y2={line.y}
-                          stroke="var(--muted-foreground)"
-                          strokeWidth="0.2"
-                          vectorEffect="non-scaling-stroke"
-                          opacity={0.3}
-                        />
-                      ))}
-                      
-                      {/* Area fill */}
-                      <path
-                        d={chartPath.areaPath}
-                        fill={`url(#chart-gradient-${symbol})`}
-                      />
-                      
-                      {/* Price line */}
-                      <path
-                        d={chartPath.linePath}
-                        fill="none"
-                        stroke={chartStats?.isPositive ? "var(--chart-3)" : "var(--destructive)"}
-                        strokeWidth="1.5"
-                        vectorEffect="non-scaling-stroke"
-                      />
-                      
-                      {/* Hover vertical line */}
-                      {hoverData && (
-                        <line
-                          x1={hoverData.x}
-                          y1="0"
-                          x2={hoverData.x}
-                          y2="100"
-                          stroke="var(--foreground)"
-                          strokeWidth="0.3"
-                          vectorEffect="non-scaling-stroke"
-                          opacity={0.5}
-                        />
-                      )}
-                    </svg>
-                    
-                    {/* Hover dot - separate element to avoid distortion */}
-                    {hoverData && (
-                      <div
-                        className="absolute w-2.25 h-2.25 rounded-full border-1 border-white pointer-events-none"
-                        style={{
-                          left: `${hoverData.x}%`,
-                          top: `${hoverData.y}%`,
-                          transform: "translate(-50%, -50%)",
-                          backgroundColor: chartStats?.isPositive ? "var(--chart-3)" : "var(--destructive)",
-                        }}
-                      />
-                    )}
-                    
-                    {/* Hover tooltip */}
-                    {hoverData && (
-                      <div 
-                        className="absolute top-2 left-2 bg-background/90 backdrop-blur-sm border rounded-md px-2 py-1 text-sm pointer-events-none"
+                    <ChartContainer id={`profile-${symbol}`} className="h-full w-full" config={{ value: { color: chartStats?.isPositive ? "var(--chart-3)" : "var(--destructive)" } }}>
+                      <Recharts.AreaChart
+                        data={bars.map((b) => ({ time: b.timestamp, value: b.close }))}
+                        margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
                       >
-                        <p className="font-semibold">{formatPrice(hoverData.price)}</p>
-                        <p className="text-xs text-muted-foreground">{hoverData.date}</p>
-                      </div>
-                    )}
-                  </>
+                        <defs>
+                          <linearGradient id={`chart-gradient-${symbol}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={chartStats?.isPositive ? "var(--chart-3)" : "var(--destructive)"} stopOpacity={0.3} />
+                            <stop offset="100%" stopColor={chartStats?.isPositive ? "var(--chart-3)" : "var(--destructive)"} stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <Recharts.CartesianGrid horizontal={false} vertical={false} />
+                        <Recharts.XAxis dataKey="time" hide />
+                        <Recharts.YAxis hide domain={yDomain as any} />
+                        <Recharts.Tooltip content={<ChartTooltipContent indicator="dot" labelFormatter={(l) => formatBarTime(l as string | number)} />} />
+                        <Recharts.Area
+                          type="monotone"
+                          dataKey="value"
+                          stroke={chartStats?.isPositive ? "var(--chart-3)" : "var(--destructive)"}
+                          fill={`url(#chart-gradient-${symbol})`}
+                          fillOpacity={1}
+                          strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          shapeRendering="geometricPrecision"
+                          dot={false}
+                          activeDot={{ r: 4 }}
+                          isAnimationActive={false}
+                        />
+                      </Recharts.AreaChart>
+                    </ChartContainer>
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
                     No chart data available
@@ -454,20 +383,7 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
                 
                 </div>
                 
-                {/* Price labels - outside chart on the right */}
-                {bars.length > 0 && (
-                  <div className="relative h-64 w-14 flex-shrink-0">
-                    {chartPath.priceLines?.map((line, i) => (
-                      <div
-                        key={i}
-                        className="absolute right-0 text-xs text-muted-foreground whitespace-nowrap"
-                        style={{ top: `${line.y}%`, transform: "translateY(-50%)" }}
-                      >
-                        {line.price.toFixed(2)}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {/* Price labels removed (use tooltip or Y axis) */}
               </div>
             </div>
 

@@ -166,8 +166,16 @@ export async function searchSymbols(query: string): Promise<SearchResult[]> {
       return [];
     }
 
+    // Sallitut yhdysvaltalaiset pörssit
+    const US_EXCHANGES = ["NYQ", "NYE", "NMS", "NAS", "ASE", "AMEX", "ARCX", "ARCA", "BATS"];
+    // Indeksisymbolit joita EI sallita osakehaussa
+    const INDEX_SYMBOLS_SET = new Set(["^GSPC", "^IXIC", "^DJI", "^RUT"]);
     return data.quotes
-      .filter((q: any) => q.quoteType === "EQUITY" || q.quoteType === "ETF")
+      .filter((q: any) =>
+        (q.quoteType === "EQUITY" || q.quoteType === "ETF") &&
+        US_EXCHANGES.includes((q.exchange || "").toUpperCase()) &&
+        !INDEX_SYMBOLS_SET.has(q.symbol)
+      )
       .map((q: any) => ({
         symbol: q.symbol,
         name: q.shortname || q.longname || q.symbol,

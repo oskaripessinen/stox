@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ArrowUpDown, ArrowUp, ArrowDown, ChevronUp, ChevronDown, Star, Loader2 } from "lucide-react";
-import { getMultipleQuotes, getIndices, getTopMovers, StockQuote, IndexData, MarketMover, formatPrice, formatPoints, formatChange, formatVolume } from "@/lib/api";
+import { getMultipleQuotes, getIndices, getTopMovers, getStockProfile, StockQuote, IndexData, MarketMover, formatPrice, formatPoints, formatChange, formatMarketCap } from "@/lib/api";
 
 // Stock symbols for each index
 const indexSymbols: Record<string, string[]> = {
@@ -79,8 +79,18 @@ export default function Home() {
       setMoversLoading(true);
       try {
         const movers = await getTopMovers(5);
-        setTopGainers(movers.gainers);
-        setTopLosers(movers.losers);
+        const gainerSymbols = movers.gainers.map((m) => m.symbol);
+        const loserSymbols = movers.losers.map((m) => m.symbol);
+
+        // Fetch profiles for marketCap and merge in
+        const gainerProfiles = await Promise.all(gainerSymbols.map((s) => getStockProfile(s)));
+        const loserProfiles = await Promise.all(loserSymbols.map((s) => getStockProfile(s)));
+
+        const gainersWithCap = movers.gainers.map((g, i) => ({ ...g, marketCap: gainerProfiles[i]?.marketCap ?? undefined }));
+        const losersWithCap = movers.losers.map((l, i) => ({ ...l, marketCap: loserProfiles[i]?.marketCap ?? undefined }));
+
+        setTopGainers(gainersWithCap);
+        setTopLosers(losersWithCap);
       } catch (err) {
         console.error("Failed to fetch movers:", err);
       } finally {
@@ -124,8 +134,8 @@ export default function Home() {
         bVal = b.price;
         break;
       case "change":
-        aVal = a.changePercent;
-        bVal = b.changePercent;
+        aVal = a.changePercent ?? 0;
+        bVal = b.changePercent ?? 0;
         break;
       case "volume":
         aVal = a.volume;
@@ -185,14 +195,11 @@ export default function Home() {
           <IndexCards indices={indices} loading={indicesLoading} />
 
           {/* Top Gainers, Losers & Watchlist */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-            <div className="lg:col-span-2">
+        
+            <div className="lg:col-span-2 mb-16">
               <Movers topGainers={topGainers} topLosers={topLosers} loading={moversLoading} onSelect={(s) => { setSelectedStock(s); setProfileDialogOpen(true); }} />
             </div>
-            <div>
-              <Watchlist />
-            </div>
-          </div>
+          
 
           {/* Stock List */}
           <StockList

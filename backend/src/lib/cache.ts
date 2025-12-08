@@ -41,6 +41,7 @@ export const TTL = {
   SEARCH: 3600,       
   MOVERS: 60,         
   INDICES: 60,        
+  DETAILS: 60,
 };
 
 /**
@@ -94,6 +95,8 @@ export const cacheKeys = {
   profile: (symbol: string) => `stock:profile:${symbol.toUpperCase()}`,
   bars: (symbol: string, timeframe: string, limit: number) => 
     `stock:bars:${symbol.toUpperCase()}:${timeframe}:${limit}`,
+  details: (symbol: string, timeframe: string, limit: number) => 
+    `stock:details:${symbol.toUpperCase()}:${timeframe}:${limit}`,
   search: (query: string) => `search:${query.toLowerCase()}`,
   movers: (top: number) => `movers:${top}`,
   indices: () => `indices`,

@@ -3,8 +3,8 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:30
 export interface StockQuote {
   symbol: string;
   price: number;
-  change: number;
-  changePercent: number;
+  change: number | null;
+  changePercent: number | null;
   open: number;
   high: number;
   low: number;
@@ -28,10 +28,17 @@ export interface IndexData {
   name: string;
   symbol: string;
   value: number;
-  change: number;
-  changePercent: number;
+  change: number | null;
+  changePercent: number | null;
   up: boolean;
   data: Array<{ time: string; value: number }>;
+  etf?: {
+    symbol: string;
+    price: number | null;
+    change: number | null;
+    changePercent: number | null;
+    up?: boolean;
+  };
 }
 
 export interface MarketMover {
@@ -40,6 +47,7 @@ export interface MarketMover {
   change: number;
   percent_change: number;
   volume: number;
+  marketCap?: number;
 }
 
 export interface TopMovers {
@@ -193,6 +201,25 @@ export async function getMultipleQuotes(symbols: string[]): Promise<StockQuote[]
 }
 
 /**
+ * Get aggregated details (profile, quote, history) for a stock
+ */
+export async function getStockDetails(
+  symbol: string,
+  timeframe: string = "1Day",
+  limit: number = 100
+): Promise<{ profile: StockProfile | null; quote: StockQuote | null; history: { symbol: string; timeframe: string; bars: StockBar[] } | null } | null> {
+  try {
+    const params = new URLSearchParams({ timeframe, limit: String(limit) });
+    const res = await fetch(`${API_BASE_URL}/api/stocks/${symbol}/details?${params}`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch (error) {
+    console.error("Error fetching stock details:", error);
+    return null;
+  }
+}
+
+/**
  * Format price to display string
  */
 export function formatPrice(price: number): string {
@@ -209,7 +236,8 @@ export function formatPoints(points: number): string {
 /**
  * Format change percent to display string
  */
-export function formatChange(changePercent: number): string {
+export function formatChange(changePercent: number | null | undefined): string {
+  if (changePercent === null || changePercent === undefined) return "-";
   const sign = changePercent >= 0 ? "+" : "";
   return `${sign}${changePercent.toFixed(2)}%`;
 }

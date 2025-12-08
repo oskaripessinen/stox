@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Loader2, ExternalLink, Globe, Building2, MapPin, Calendar, TrendingUp, DollarSign } from "lucide-react";
-import { getStockProfile, getStockQuote, getStockHistory, StockProfile, StockQuote, StockBar, formatPrice, formatChange, formatMarketCap, formatVolume } from "@/lib/api";
+import { getStockDetails, StockProfile, StockQuote, StockBar, formatPrice, formatChange, formatMarketCap, formatVolume } from "@/lib/api";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import * as Recharts from "recharts";
 
@@ -45,7 +45,7 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
   const [logoLoaded, setLogoLoaded] = useState(false);
   const chartRef = useRef<HTMLDivElement>(null);
 
-  // Fetch profile and quote
+
   useEffect(() => {
     if (!symbol || !open) {
       setProfile(null);
@@ -56,55 +56,33 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
       return;
     }
 
-    async function fetchData() {
+    async function fetchDetails() {
       setLoading(true);
-      setError(null);
-
+      setChartLoading(true);
       try {
-        const [profileData, quoteData] = await Promise.all([
-          getStockProfile(symbol!),
-          getStockQuote(symbol!),
-        ]);
-
-        if (!quoteData) {
+        const data = await getStockDetails(symbol!, selectedTimeframe.timeframe, selectedTimeframe.limit);
+        if (!data) {
           setError("Unable to load stock data");
+          setProfile(null);
+          setQuote(null);
+          setBars([]);
         } else {
-          setProfile(profileData);
-          setQuote(quoteData);
+          setProfile(data.profile || null);
+          setQuote(data.quote || null);
+          setBars(data.history?.bars || []);
         }
       } catch (err) {
         setError("Failed to load stock data");
         console.error(err);
       } finally {
         setLoading(false);
-      }
-    }
-
-    fetchData();
-  }, [symbol, open]);
-
-  // Fetch chart data when timeframe changes
-  useEffect(() => {
-    if (!symbol || !open) return;
-
-    async function fetchChart() {
-      setChartLoading(true);
-      try {
-        const data = await getStockHistory(symbol!, selectedTimeframe.timeframe, selectedTimeframe.limit);
-        if (data?.bars) {
-          setBars(data.bars);
-        }
-      } catch (err) {
-        console.error("Failed to load chart data:", err);
-      } finally {
         setChartLoading(false);
       }
     }
 
-    fetchChart();
+    fetchDetails();
   }, [symbol, open, selectedTimeframe]);
 
-  // Calculate chart stats
   const chartStats = useMemo(() => {
     if (bars.length < 2) return null;
     
@@ -120,27 +98,21 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
     };
   }, [bars]);
 
-  // Format bar times for tooltip/X axis depending on selected timeframe
   const formatBarTime = (ts: string | number) => {
     const d = typeof ts === "number" ? new Date(ts) : new Date(String(ts));
     if (isNaN(d.getTime())) return String(ts);
-    // If timeframe is intraday (hours/minutes) show only time HH:MM
     if (selectedTimeframe.label.includes("1D")) {
       return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
     }
     if( selectedTimeframe.label.includes("1W")) {
-      // For 1 Day timeframe with limit up to 31 days, show Month and Day
       return d.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit" });
     }
-    // Otherwise show a short date without year
     return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
   };
 
-  // formattedBars is no longer needed since we format times via tickFormatter and tooltip
 
   const isPositive = (quote?.changePercent || 0) >= 0;
 
-  // Compute Y domain for the chart so small changes are more visible (same logic as IndexCards)
   const valuesForDomain = bars.map((b) => b.close);
   const domainMin = valuesForDomain.length ? Math.min(...valuesForDomain) : 0;
   const domainMax = valuesForDomain.length ? Math.max(...valuesForDomain) : 0;
@@ -148,7 +120,6 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
   const domainPadding = domainRange > 0 ? Math.max(domainRange * 0.15, Math.abs(domainMax) * 0.01) : Math.max(Math.abs(domainMax) * 0.01, 1);
   const yDomain: Array<number | string> = [domainMin - domainPadding, domainMax + domainPadding];
 
-  // Generate SVG path for chart
   const chartPath = useMemo(() => {
     if (bars.length === 0) return { linePath: "", areaPath: "", min: 0, max: 0, priceLines: [] };
     
@@ -210,11 +181,13 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
                 />
               </div>
             )}
-            <div>
-              <span className="text-2xl">{symbol}</span>
-              {profile?.name && (
-                <p className="text-sm font-normal text-muted-foreground">{profile.name}</p>
-              )}
+            <div className="flex w-full flex-row">
+              <div>
+                <span className="text-2xl">{symbol}</span>
+                {profile?.name && (
+                  <p className="text-sm font-normal text-muted-foreground">{profile.name}</p>
+                )}
+              </div>
             </div>
           </DialogTitle>
         </DialogHeader>
@@ -275,23 +248,6 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Price Section */}
-            {quote && (
-              <div className="flex items-baseline justify-between">
-                <span className="text-4xl font-bold">{formatPrice(quote.price)}</span>
-                <div className="text-right">
-                  <span
-                    className={`text-xl font-semibold ${
-                      isPositive ? "text-chart-3" : "text-destructive"
-                    }`}
-                  >
-                    {isPositive ? "+" : ""}
-                    {quote.change.toFixed(2)} ({formatChange(quote.changePercent)})
-                  </span>
-                  <p className="text-sm text-muted-foreground">Today</p>
-                </div>
-              </div>
-            )}
 
             {/* Chart Section */}
             <div className="space-y-3">
@@ -320,6 +276,20 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
                     </button>
                   ))}
                 </div>
+                <div className="flex-col">
+                  {quote && (
+                    <div className="">
+                      <span className="text-2xl font-bold">{formatPrice(quote.price)}</span>
+                      <div className="text-right">
+                        <span
+                          className={`text-xl font-semibold ${
+                            isPositive ? "text-chart-3" : "text-destructive"
+                          }`}
+                        >
+                        </span>
+                      </div>
+                    </div>
+                    )}
                 {chartStats && (
                   <span
                     className={`text-sm font-medium ${
@@ -330,6 +300,7 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
                     {chartStats.changePercent.toFixed(2)}% ({selectedTimeframe.label})
                   </span>
                 )}
+              </div>
               </div>
 
               {/* Chart */}

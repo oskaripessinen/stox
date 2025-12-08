@@ -10,7 +10,7 @@ import { formatPrice, formatVolume, formatChange } from "@/lib/api";
 type StockQuote = {
   symbol: string;
   price: number;
-  changePercent: number;
+  changePercent: number | null;
   volume: number;
 };
 
@@ -102,7 +102,7 @@ export default function StockList({
               >
                 <div className="font-semibold text-foreground">{stock.symbol}</div>
                 <div className="text-right font-medium">{formatPrice(stock.price)}</div>
-                <div className={`text-right font-medium ${stock.changePercent >= 0 ? "text-chart-3" : "text-destructive"}`}>
+                <div className={`text-right font-medium ${(stock.changePercent ?? 0) >= 0 ? "text-chart-3" : "text-destructive"}`}>
                   {formatChange(stock.changePercent)}
                 </div>
                 <div className="text-right text-muted-foreground text-sm hidden md:block">{formatVolume(stock.volume)}</div>

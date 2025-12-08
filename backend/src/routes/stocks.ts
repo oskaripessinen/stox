@@ -100,14 +100,12 @@ router.get("/indices", async (req: Request, res: Response) => {
     const etfSymbols = Object.values(indexToEtf).map(i => i.etf);
     const etfQuotes = await getMultipleQuotes(etfSymbols);
     console.log("Fetched ETF quotes for indices:", etfQuotes);
-    const intradayStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  
-    const candidateTimeframes = [
-      { tf: '1Min', limit: 390, start: intradayStart },
-      { tf: '5Min', limit: 78, start: intradayStart },
-      { tf: '15Min', limit: 26, start: intradayStart },
-      { tf: '1Hour', limit: 6, start: intradayStart },
-      { tf: '1Day', limit: 1, start: undefined },
+    const candidateTimeframes: Array<{ tf: string; limit: number; start?: string }> = [
+      { tf: '1Min', limit: 390 },
+      { tf: '5Min', limit: 78 },
+      { tf: '15Min', limit: 26 },
+      { tf: '1Hour', limit: 6 },
+      { tf: '1Day', limit: 1 },
     ];
 
     async function fetchBestEtfBars(symbol: string) {
@@ -160,10 +158,18 @@ router.get("/indices", async (req: Request, res: Response) => {
         id: quote.symbol,
         name: etfInfo.name,
         symbol: quote.symbol,
+        // Keep index metadata but expose ETF quote too; frontend will prefer ETF price for display
         value: quote.price, 
         change: quote.change ?? null,
         changePercent: quote.changePercent ?? null,
         up: (quote.changePercent ?? 0) >= 0,
+        etf: {
+          symbol: etfInfo.etf,
+          price: etfQuote?.price ?? null,
+          change: etfQuote?.change ?? null,
+          changePercent: etfQuote?.changePercent ?? null,
+          up: (etfQuote?.changePercent ?? 0) >= 0,
+        },
         data: bars.length ? bars.map((bar: any) => ({ time: bar.Timestamp, value: bar.ClosePrice })) : [],
       };
     });
@@ -197,13 +203,12 @@ router.post("/indices/refresh", requireAuth, async (req: Request, res: Response)
     const indicesData = await getAllIndices();
     const etfSymbols = Object.values(indexToEtf).map(i => i.etf);
     const etfQuotes = await getMultipleQuotes(etfSymbols);
-    const intradayStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const candidateTimeframes = [
-      { tf: '1Min', limit: 390, start: intradayStart },
-      { tf: '5Min', limit: 78, start: intradayStart },
-      { tf: '15Min', limit: 26, start: intradayStart },
-      { tf: '1Hour', limit: 6, start: intradayStart },
-      { tf: '1Day', limit: 1, start: undefined },
+    const candidateTimeframes: Array<{ tf: string; limit: number; start?: string }> = [
+      { tf: '1Min', limit: 390 },
+      { tf: '5Min', limit: 78 },
+      { tf: '15Min', limit: 26 },
+      { tf: '1Hour', limit: 6 },
+      { tf: '1Day', limit: 1 },
     ];
 
     async function fetchBestEtfBars(symbol: string) {
@@ -258,6 +263,13 @@ router.post("/indices/refresh", requireAuth, async (req: Request, res: Response)
         change: quote.change ?? null,
         changePercent: quote.changePercent ?? null,
         up: (quote.changePercent ?? 0) >= 0,
+        etf: {
+          symbol: etfInfo.etf,
+          price: etfQuote?.price ?? null,
+          change: etfQuote?.change ?? null,
+          changePercent: etfQuote?.changePercent ?? null,
+          up: (etfQuote?.changePercent ?? 0) >= 0,
+        },
         data: (bars.length ? bars.map((bar: any) => ({ time: bar.Timestamp, value: bar.ClosePrice })) : []),
       };
     });
@@ -463,6 +475,61 @@ router.get("/:symbol/history", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error fetching stock history:", error);
     res.status(500).json({ error: "Failed to fetch stock history" });
+  }
+});
+
+/**
+ * GET /api/stocks/:symbol/details
+ * Aggregated endpoint that returns profile, quote and history for a stock
+ * Query params: timeframe, limit, start, end
+ */
+router.get("/:symbol/details", async (req: Request, res: Response) => {
+  try {
+    const { symbol } = req.params;
+    const { timeframe = "1Day", limit = "100", start, end } = req.query;
+
+    if (!symbol) {
+      res.status(400).json({ error: "Symbol is required" });
+      return;
+    }
+
+    const limitNum = parseInt(limit as string, 10);
+    const cacheKey = cacheKeys.details(symbol, timeframe as string, limitNum);
+    const cached = await getCache(cacheKey);
+    if (cached) {
+      res.json(cached);
+      return;
+    }
+
+    const [profile, quote, bars] = await Promise.all([
+      getCompanyProfile(symbol.toUpperCase()),
+      getStockQuote(symbol.toUpperCase()),
+      getBars(symbol.toUpperCase(), timeframe as string, start as string | undefined, end as string | undefined, limitNum),
+    ]);
+
+    const history = {
+      symbol: symbol.toUpperCase(),
+      timeframe,
+      bars: (bars || []).map((bar: any) => ({
+        timestamp: bar.Timestamp,
+        open: bar.OpenPrice,
+        high: bar.HighPrice,
+        low: bar.LowPrice,
+        close: bar.ClosePrice,
+        volume: bar.Volume,
+        vwap: bar.VWAP,
+      })),
+    };
+
+    const result = { profile, quote, history };
+
+    // Cache aggregated data for a short period
+    await setCache(cacheKey, result, TTL.DETAILS);
+
+    res.json(result);
+  } catch (error) {
+    console.error("Error fetching stock details:", error);
+    res.status(500).json({ error: "Failed to fetch stock details" });
   }
 });
 

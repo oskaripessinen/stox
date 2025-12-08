@@ -88,17 +88,26 @@ export async function getBars(
 ) {
   try {
     const params = new URLSearchParams({ timeframe, limit: String(limit) });
-    
-    // Alpaca requires a start date - default to limit days ago based on timeframe
+    // If start not provided, compute start based on timeframe and limit so we fetch exactly the needed range
     if (!start) {
-      const now = new Date();
-      let daysBack = limit;
-      if (timeframe.includes("Hour") || timeframe.includes("Min")) {
-        daysBack = Math.ceil(limit / 24) + 5; // Extra buffer for market hours
-      } else if (timeframe.includes("Week")) {
-        daysBack = limit * 7;
+      const now = Date.now();
+      // Parse timeframe: e.g., "1Min", "5Min", "15Min", "1Hour", "1Day"
+      const match = timeframe.match(/(\d+)(Min|Hour|Day|Week)/i);
+      let timeUnitMinutes = 1440; // default 1 day
+      if (match) {
+        const value = parseInt(match[1], 10);
+        const unit = match[2].toLowerCase();
+        if (unit === "min") timeUnitMinutes = value;
+        else if (unit === "hour") timeUnitMinutes = value * 60;
+        else if (unit === "day") timeUnitMinutes = value * 60 * 24;
+        else if (unit === "week") timeUnitMinutes = value * 60 * 24 * 7;
       }
-      const startDate = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
+      // Calculate total minutes to go back: limit * minutes per bar.
+      const totalMinutes = Math.ceil(timeUnitMinutes * limit);
+      // Cap totalMinutes to 365 days to avoid insane ranges
+      const maxMinutes = 365 * 24 * 60;
+      const minutesToBack = Math.min(totalMinutes, maxMinutes);
+      const startDate = new Date(now - minutesToBack * 60 * 1000);
       start = startDate.toISOString();
     }
     

@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatPrice, formatPoints, getStockHistory, StockBar } from "@/lib/api";
 import * as Recharts from "recharts";
@@ -37,12 +37,12 @@ export default function IndexCards({ indices, loading }: { indices: IndexPoint[]
   const [etfBarsMap, setEtfBarsMap] = useState<Record<string, StockBar[]>>({});
 
   // Mapping of index symbols to ETF tickers
-  const indexToEtf: Record<string, string> = {
+  const indexToEtf = useMemo<Record<string, string>>(() => ({
     '^GSPC': 'SPY',
     '^IXIC': 'QQQ',
     '^DJI': 'DIA',
     '^RUT': 'IWM',
-  };
+  }), []);
 
   useEffect(() => {
     // Load bars for ETFs for each index; only use ETF data (no Yahoo fallback)
@@ -67,7 +67,7 @@ export default function IndexCards({ indices, loading }: { indices: IndexPoint[]
               break;
             }
           } catch (e) {
-            // ignore and try next timeframe
+            console.error(`Error fetching bars for ETF ${sym} with timeframe ${c.tf}:`, e);
           }
         }
       }));
@@ -76,7 +76,7 @@ export default function IndexCards({ indices, loading }: { indices: IndexPoint[]
     }
 
     fetchEtfBars();
-  }, [indices]);
+  }, [indices, indexToEtf]);
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
       {loading ? (
@@ -134,19 +134,17 @@ export default function IndexCards({ indices, loading }: { indices: IndexPoint[]
                   const displayUp = index.etf?.up ?? index.up;
                   // Map bars into chart data with raw price values. The chart will use actual prices on Y axis.
                   const rawData = bars.map((b) => ({ time: b.timestamp, rawValue: b.close }));
-                  const last = rawData[rawData.length - 1];
-                  const lastVal = last?.rawValue || 1;
                   const chartData = rawData.map((d) => ({ time: d.time, value: d.rawValue, rawValue: d.rawValue }));
                   const vals = chartData.map((d) => d.value);
                   const minV = Math.min(...vals);
                   const maxV = Math.max(...vals);
                   const r = Math.abs(maxV - minV);
                   const paddingVal = r > 0 ? Math.max(r * 0.15, Math.abs(maxV) * 0.001) : Math.max(Math.abs(maxV) * 0.01, 0.1);
-                  const domain: Array<number | string> = [minV - paddingVal, maxV + paddingVal];
+                  const domain: [number, number] = [minV - paddingVal, maxV + paddingVal];
                   return (
                     <ChartContainer id={index.id} className="h-full w-full" config={{ value: { color: displayUp ? "var(--chart-3)" : "var(--destructive)" } }}>
                       <Recharts.AreaChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                        <Recharts.YAxis hide domain={domain as any} tickFormatter={(v) => `${formatPrice(Number(v))}`} />
+                        <Recharts.YAxis hide domain={domain} tickFormatter={(v) => `${formatPrice(Number(v))}`} />
                         <defs>
                           <linearGradient id={`chart-gradient-${index.id}`} x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor={displayUp ? "var(--chart-3)" : "var(--destructive)"} stopOpacity={0.3} />

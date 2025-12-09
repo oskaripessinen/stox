@@ -8,7 +8,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Loader2, ExternalLink, Globe, Building2, MapPin, Calendar, TrendingUp, DollarSign } from "lucide-react";
-import { getStockDetails, StockProfile, StockQuote, StockBar, formatPrice, formatChange, formatMarketCap, formatVolume } from "@/lib/api";
+import { getStockDetails, StockProfile, StockQuote, StockBar, formatPrice, formatMarketCap, formatVolume } from "@/lib/api";
+import Image from "next/image";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import * as Recharts from "recharts";
 
@@ -40,7 +41,7 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
   const [loading, setLoading] = useState(false);
   const [chartLoading, setChartLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTimeframe, setSelectedTimeframe] = useState<TimeframeOption>(TIMEFRAME_OPTIONS[2]); // Default 1M
+  const [selectedTimeframe, setSelectedTimeframe] = useState<TimeframeOption>(TIMEFRAME_OPTIONS[0]); // Default 1D
   
   const [logoLoaded, setLogoLoaded] = useState(false);
   const chartRef = useRef<HTMLDivElement>(null);
@@ -81,7 +82,7 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
     }
 
     fetchDetails();
-  }, [symbol, open]);
+  }, [symbol, open, selectedTimeframe.timeframe, selectedTimeframe.limit]);
 
   async function fetchChartData() {
     if (!symbol) return;
@@ -133,44 +134,9 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
   const domainMax = valuesForDomain.length ? Math.max(...valuesForDomain) : 0;
   const domainRange = Math.abs(domainMax - domainMin);
   const domainPadding = domainRange > 0 ? Math.max(domainRange * 0.15, Math.abs(domainMax) * 0.01) : Math.max(Math.abs(domainMax) * 0.01, 1);
-  const yDomain: Array<number | string> = [domainMin - domainPadding, domainMax + domainPadding];
+  const yDomain: [number, number] = [domainMin - domainPadding, domainMax + domainPadding];
 
-  const chartPath = useMemo(() => {
-    if (bars.length === 0) return { linePath: "", areaPath: "", min: 0, max: 0, priceLines: [] };
-    
-    const closes = bars.map((b) => b.close);
-    const min = Math.min(...closes);
-    const max = Math.max(...closes);
-    const range = max - min || 1;
-    
-    const width = 100;
-    const height = 100;
-    const padding = 5;
-    
-    const points = closes.map((close, i) => {
-      const x = (i / (closes.length - 1)) * width;
-      const y = height - padding - ((close - min) / range) * (height - padding * 2);
-      return { x, y, close };
-    });
-    
-    const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
-    const areaPath = `${linePath} L${width},${height} L0,${height} Z`;
-    
-    // Calculate open price Y position (first bar's open)
-    const openPrice = bars[0].open;
-    const openY = height - padding - ((openPrice - min) / range) * (height - padding * 2);
-    
-    // Generate horizontal price grid lines (5 lines)
-    const numLines = 5;
-    const priceLines = [];
-    for (let i = 0; i < numLines; i++) {
-      const price = min + (range * i) / (numLines - 1);
-      const y = height - padding - ((price - min) / range) * (height - padding * 2);
-      priceLines.push({ y, price });
-    }
-    
-    return { linePath, areaPath, min, max, points, openY, openPrice, height, padding, range, priceLines };
-  }, [bars]);
+  // We previously generated chartPath manually, but now use Recharts. Keep `bars` as source of truth.
 
   // Hover interactions handled by Recharts tooltip/activeDot
 
@@ -179,23 +145,22 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
       <DialogContent className="sm:max-w-[1000px] h-[750px] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
-            {profile?.logo && (
-              <div className="relative w-12 h-12">
-                {!logoLoaded && (
-                  <div className="absolute inset-0 bg-muted animate-pulse rounded-lg" />
+                {profile?.logo && (
+                  <div className="relative w-12 h-12">
+                    {!logoLoaded && (
+                      <div className="absolute inset-0 bg-muted animate-pulse rounded-lg" />
+                    )}
+                    <Image
+                      src={profile.logo}
+                      alt={`${profile.name} logo`}
+                      width={48}
+                      height={48}
+                      className={`w-12 h-12 rounded-lg object-contain transition-opacity duration-200 ${logoLoaded ? 'opacity-100' : 'opacity-0'}`}
+                      onLoadingComplete={() => setLogoLoaded(true)}
+                      onError={() => setLogoLoaded(true)}
+                    />
+                  </div>
                 )}
-                <img
-                  src={profile.logo}
-                  alt={`${profile.name} logo`}
-                  className={`w-12 h-12 rounded-lg object-contain transition-opacity duration-200 ${logoLoaded ? 'opacity-100' : 'opacity-0'}`}
-                  onLoad={() => setLogoLoaded(true)}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                    setLogoLoaded(true);
-                  }}
-                />
-              </div>
-            )}
             <div className="flex w-full flex-row">
               <div>
                 <span className="text-2xl">{symbol}</span>
@@ -346,7 +311,7 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
                         </defs>
                         <Recharts.CartesianGrid horizontal={false} vertical={false} />
                         <Recharts.XAxis dataKey="time" hide />
-                        <Recharts.YAxis hide domain={yDomain as any} />
+                        <Recharts.YAxis hide domain={yDomain} />
                         <Recharts.Tooltip content={<ChartTooltipContent indicator="dot" labelFormatter={(l) => formatBarTime(l as string | number)} />} />
                         <Recharts.Area
                           type="monotone"

@@ -164,21 +164,6 @@ function ChartTooltipContent({
     labelKey,
   ])
 
-  const formattedLabel = React.useMemo(() => {
-    if (!label) return null;
-    try {
-      const date = typeof label === "number" ? new Date(label) : new Date(String(label));
-      if (isNaN(date.getTime())) return String(label);
-      const hasTime = date.getHours() !== 0 || date.getMinutes() !== 0 || date.getSeconds() !== 0;
-      const opts: Intl.DateTimeFormatOptions = hasTime
-        ? { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }
-        : { month: "short", day: "numeric" };
-      return date.toLocaleString(undefined, opts);
-    } catch (e) {
-      return String(label);
-    }
-  }, [label]);
-
   if (!active || !payload?.length) {
     return null
   }

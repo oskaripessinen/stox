@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { SignedIn, SignedOut } from "@clerk/clerk-react";
 import { UserDropdown } from "@/components/auth/user-dropdown";
 import { SignInModal } from "@/components/auth/sign-in-modal";
@@ -13,19 +14,17 @@ interface HeaderProps {
 }
 
 export function Header({ onStockSelect }: HeaderProps) {
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return document.documentElement.classList.contains("dark");
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const isDark = document.documentElement.classList.contains("dark");
-      setDarkMode(isDark);
-    }
-  }, []);
+  // `darkMode` initial state is derived directly; no effect needed on mount
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -42,19 +41,25 @@ export function Header({ onStockSelect }: HeaderProps) {
 
   // Debounced search
   useEffect(() => {
-    if (searchQuery.length < 1) {
-      setSearchResults([]);
-      return;
-    }
+    if (!searchQuery || searchQuery.length < 1) return;
 
-    setSearchLoading(true);
+    let cancelled = false;
     const timeoutId = setTimeout(async () => {
-      const results = await searchStocks(searchQuery);
-      setSearchResults(results);
-      setSearchLoading(false);
+      setSearchLoading(true);
+      try {
+        const results = await searchStocks(searchQuery);
+        if (!cancelled) setSearchResults(results);
+      } catch (err) {
+        console.error("Error searching stocks:", err);
+      } finally {
+        if (!cancelled) setSearchLoading(false);
+      }
     }, 300);
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
   }, [searchQuery]);
 
   const toggleDarkMode = () => {
@@ -73,9 +78,9 @@ export function Header({ onStockSelect }: HeaderProps) {
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex h-16 px-10 items-center justify-between">
           <div className="flex items-center gap-6">
-              <a href="/" className="flex items-center gap-2">
-              <span className="text-2xl font-bold font-orbitron">Stox</span>
-            </a>
+              <Link href="/" className="flex items-center gap-2">
+                <span className="text-2xl font-bold font-orbitron">Stox</span>
+              </Link>
 
             <nav className="hidden lg:flex items-center gap-1">
               <Button
@@ -188,7 +193,11 @@ export function Header({ onStockSelect }: HeaderProps) {
                   type="text"
                   placeholder="Search stocks, ETFs, indices..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setSearchQuery(v);
+                    if (v.length === 0) setSearchResults([]);
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Escape") {
                       setSearchOpen(false);

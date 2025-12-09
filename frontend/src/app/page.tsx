@@ -1,30 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { SignedIn, SignedOut } from "@clerk/clerk-react";
-import { SignInModal } from "@/components/auth/sign-in-modal";
+// Auth UI handled inside Header component
 import { Header } from "@/components/layout/header";
 import { StockProfileDialog } from "@/components/stocks/stock-profile-dialog";
 import IndexCards from "@/components/market/IndexCards";
 import Movers from "@/components/market/Movers";
 import StockList from "@/components/market/StockList";
-import Watchlist from "@/components/market/Watchlist";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ArrowUpDown, ArrowUp, ArrowDown, ChevronUp, ChevronDown, Star, Loader2 } from "lucide-react";
-import { getMultipleQuotes, getIndices, getTopMovers, getStockProfile, StockQuote, IndexData, MarketMover, formatPrice, formatPoints, formatChange, formatMarketCap } from "@/lib/api";
+// UI elements not used on this page
+import { getMultipleQuotes, getIndices, getTopMovers, getStockProfile, StockQuote, IndexData, MarketMover } from "@/lib/api";
 
 // Stock symbols for each index
 const indexSymbols: Record<string, string[]> = {
@@ -53,7 +37,7 @@ export default function Home() {
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
   // Index stocks data
-  const [selectedIndex, setSelectedIndex] = useState("sp500");
+  const [selectedIndex] = useState("sp500");
   const [sortBy, setSortBy] = useState("price");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
@@ -162,17 +146,6 @@ export default function Home() {
     }
   };
 
-  // Sort indicator component
-  const SortIndicator = ({ column }: { column: string }) => {
-    if (sortBy !== column) {
-      return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
-    }
-    return sortOrder === "asc" ? (
-      <ArrowUp className="h-3 w-3 ml-1" />
-    ) : (
-      <ArrowDown className="h-3 w-3 ml-1" />
-    );
-  };
 
   const handleSearchSelect = (symbol: string) => {
     setSelectedStock(symbol);

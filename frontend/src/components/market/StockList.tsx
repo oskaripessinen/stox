@@ -14,6 +14,13 @@ type StockQuote = {
   volume: number;
 };
 
+function SortIndicator({ column, sortBy, sortOrder }: { column: string; sortBy: string; sortOrder: "asc" | "desc" }) {
+  if (sortBy !== column) {
+    return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
+  }
+  return sortOrder === "asc" ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />;
+}
+
 export default function StockList({
   sortedStocks,
   loading,
@@ -31,12 +38,7 @@ export default function StockList({
   sortOrder: "asc" | "desc";
   onSort: (col: string) => void;
 }) {
-  const SortIndicator = ({ column }: { column: string }) => {
-    if (sortBy !== column) {
-      return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
-    }
-    return sortOrder === "asc" ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />;
-  };
+  // Use the top-level SortIndicator component created above
 
   return (
     <Card>
@@ -67,21 +69,21 @@ export default function StockList({
       </CardHeader>
       <CardContent>
         <div className="hidden md:grid grid-cols-4 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b border-border">
-          <button onClick={() => onSort("symbol")} className="flex items-center hover:text-foreground transition-colors text-left">
+              <button onClick={() => onSort("symbol")} className="flex items-center hover:text-foreground transition-colors text-left">
             Symbol
-            <SortIndicator column="symbol" />
+            <SortIndicator column="symbol" sortBy={sortBy} sortOrder={sortOrder} />
           </button>
-          <button onClick={() => onSort("price")} className="flex items-center justify-end hover:text-foreground transition-colors">
+            <button onClick={() => onSort("price")} className="flex items-center justify-end hover:text-foreground transition-colors">
             Price
-            <SortIndicator column="price" />
+            <SortIndicator column="price" sortBy={sortBy} sortOrder={sortOrder} />
           </button>
           <button onClick={() => onSort("change")} className="flex items-center justify-end hover:text-foreground transition-colors">
             Change
-            <SortIndicator column="change" />
+            <SortIndicator column="change" sortBy={sortBy} sortOrder={sortOrder} />
           </button>
           <button onClick={() => onSort("volume")} className="flex items-center justify-end hover:text-foreground transition-colors">
             Volume
-            <SortIndicator column="volume" />
+            <SortIndicator column="volume" sortBy={sortBy} sortOrder={sortOrder} />
           </button>
         </div>
         <div className="divide-y divide-border">

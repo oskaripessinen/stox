@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, ExternalLink, Globe, Building2, MapPin, Calendar, TrendingUp, DollarSign } from "lucide-react";
 import { getStockDetails, StockProfile, StockQuote, StockBar, formatPrice, formatChange, formatMarketCap, formatVolume } from "@/lib/api";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import * as Recharts from "recharts";
 
 interface StockProfileDialogProps {
@@ -58,7 +58,7 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
 
     async function fetchDetails() {
       setLoading(true);
-      setChartLoading(true);
+      
       try {
         const data = await getStockDetails(symbol!, selectedTimeframe.timeframe, selectedTimeframe.limit);
         if (!data) {
@@ -76,12 +76,27 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
         console.error(err);
       } finally {
         setLoading(false);
-        setChartLoading(false);
+        
       }
     }
 
     fetchDetails();
-  }, [symbol, open, selectedTimeframe]);
+  }, [symbol, open]);
+
+  async function fetchChartData() {
+    if (!symbol) return;
+    setChartLoading(true);
+    try {
+      const data = await getStockDetails(symbol, selectedTimeframe.timeframe, selectedTimeframe.limit);
+      if (data?.history?.bars) {
+        setBars(data.history.bars);
+      }
+    } catch (err) {
+      console.error("Failed to fetch chart data:", err);
+    } finally {
+      setChartLoading(false);
+    }
+  }
 
   const chartStats = useMemo(() => {
     if (bars.length < 2) return null;
@@ -265,7 +280,10 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
                   {TIMEFRAME_OPTIONS.map((tf) => (
                     <button
                       key={tf.label}
-                      onClick={() => setSelectedTimeframe(tf)}
+                      onClick={() => {
+                        setSelectedTimeframe(tf);
+                        fetchChartData();
+                      }}
                       className={`relative z-10 w-9 py-1 text-xs font-medium rounded transition-colors duration-200 ${
                         selectedTimeframe.label === tf.label
                           ? "text-foreground"

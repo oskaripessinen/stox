@@ -74,7 +74,7 @@ export function Header({ onStockSelect }: HeaderProps) {
         <div className="mx-auto flex h-16 px-10 items-center justify-between">
           <div className="flex items-center gap-6">
               <a href="/" className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-white font-orbitron">Stox</span>
+              <span className="text-2xl font-bold font-orbitron">Stox</span>
             </a>
 
             <nav className="hidden lg:flex items-center gap-1">

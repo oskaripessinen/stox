@@ -6,12 +6,12 @@
     ],
     "cpu": "256",
     "memory": "512",
-    "executionRoleArn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/ecsTaskExecutionRole",
-    "taskRoleArn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/ecsTaskRole",
+    "executionRoleArn": "arn:aws:iam::622718430431:role/ecsTaskExecutionRole",
+    "taskRoleArn": "arn:aws:iam::622718430431:role/ecsTaskRole",
     "containerDefinitions": [
         {
             "name": "stox-backend",
-            "image": "YOUR_ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/stox-backend:latest",
+            "image": "622718430431.dkr.ecr.eu-north-1.amazonaws.com/stox-backend:latest",
             "essential": true,
             "portMappings": [
                 {
@@ -30,24 +30,19 @@
                     "value": "3001"
                 }
             ],
-            "secrets": [
-                {
-                    "name": "DATABASE_URL",
-                    "valueFrom": "arn:aws:secretsmanager:eu-north-1:YOUR_ACCOUNT_ID:secret:stox/database-url"
-                }
-            ],
             "logConfiguration": {
                 "logDriver": "awslogs",
                 "options": {
                     "awslogs-group": "/ecs/stox-backend",
                     "awslogs-region": "eu-north-1",
-                    "awslogs-stream-prefix": "ecs"
+                    "awslogs-stream-prefix": "ecs",
+                    "awslogs-create-group": "true"
                 }
             },
             "healthCheck": {
                 "command": [
                     "CMD-SHELL",
-                    "curl -f http://localhost:3001/health || exit 1"
+                    "wget --no-verbose --tries=1 --spider http://localhost:3001/api/health || exit 1"
                 ],
                 "interval": 30,
                 "timeout": 5,

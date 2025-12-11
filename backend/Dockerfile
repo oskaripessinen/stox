@@ -1,19 +1,21 @@
-# Build stage
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-
 COPY package.json ./
 COPY package-lock.json ./
-COPY backend/prisma ./prisma/
+
+COPY backend/package.json ./backend/
+
+COPY backend/prisma ./backend/prisma/
+
 RUN npm ci
 RUN npm install @prisma/client --no-save
 
-RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
+RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate --schema=./backend/prisma/schema.prisma
 
-COPY backend/tsconfig.json ./
-COPY backend/src ./src/
+COPY backend/tsconfig.json ./backend/
+COPY backend/src ./backend/src/
 
 RUN npm run build
 
@@ -23,13 +25,14 @@ WORKDIR /app
 
 RUN apk add --no-cache openssl
 
-COPY package*.json ./
+COPY package.json package-lock.json ./
 
 RUN npm ci --omit=dev && npm install prisma --save-dev
 
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/backend/dist ./dist
+
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/backend/prisma ./prisma
 
 EXPOSE 3001
 

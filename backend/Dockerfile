@@ -8,6 +8,7 @@ COPY package.json ./
 COPY package-lock.json ./
 COPY backend/prisma ./prisma/
 RUN npm ci
+RUN npm install @prisma/client --no-save
 
 RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
 

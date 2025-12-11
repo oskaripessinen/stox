@@ -17,7 +17,7 @@ RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma gene
 COPY backend/tsconfig.json ./backend/
 COPY backend/src ./backend/src/
 
-RUN npm run build
+RUN npm run build --prefix backend
 
 FROM node:20-alpine AS production
 

@@ -11,9 +11,7 @@ RUN npm ci
 
 RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
 
-COPY backend/tsconfig.json ./
-
-COPY backend/src ./src/COPY tsconfig.json ./
+COPY backend/tsconfig.json ./COPY tsconfig.json ./
 COPY src ./src/
 
 RUN npm run build

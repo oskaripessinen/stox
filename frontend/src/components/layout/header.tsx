@@ -8,6 +8,7 @@ import { SignInModal } from "@/components/auth/sign-in-modal";
 import { Button } from "@/components/ui/button";
 import { Search, Sun, Moon, TrendingUp, Loader2 } from "lucide-react";
 import { searchStocks, SearchResult } from "@/lib/api";
+import { useSearch } from "@/context/search-context";
 
 interface HeaderProps {
   onStockSelect?: (symbol: string) => void;
@@ -19,7 +20,7 @@ export function Header({ onStockSelect }: HeaderProps) {
     return document.documentElement.classList.contains("dark");
   });
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
+  const { isSearchOpen, openSearch, closeSearch } = useSearch();
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -30,14 +31,14 @@ export function Header({ onStockSelect }: HeaderProps) {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
-        setSearchOpen(true);
+        openSearch();
         setTimeout(() => searchInputRef.current?.focus(), 100);
       }
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [openSearch]);
 
   // Debounced search
   useEffect(() => {
@@ -68,7 +69,7 @@ export function Header({ onStockSelect }: HeaderProps) {
   };
 
   const handleSelectStock = (symbol: string) => {
-    setSearchOpen(false);
+    closeSearch();
     setSearchQuery("");
     onStockSelect?.(symbol);
   };
@@ -97,13 +98,15 @@ export function Header({ onStockSelect }: HeaderProps) {
               >
                 Stocks
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-foreground/80 hover:text-foreground"
-              >
-                Watchlist
-              </Button>
+              <Link href="/watchlist">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-foreground/80 hover:text-foreground"
+                >
+                  Watchlist
+                </Button>
+              </Link>
               <Button
                 variant="ghost"
                 size="sm"
@@ -119,7 +122,7 @@ export function Header({ onStockSelect }: HeaderProps) {
               variant="outline"
               size="sm"
               onClick={() => {
-                setSearchOpen(true);
+                openSearch();
                 setTimeout(() => searchInputRef.current?.focus(), 100);
               }}
               className="hidden md:flex items-center gap-2 text-muted-foreground hover:text-foreground"
@@ -135,7 +138,7 @@ export function Header({ onStockSelect }: HeaderProps) {
               variant="outline"
               size="icon"
               onClick={() => {
-                setSearchOpen(true);
+                openSearch();
                 setTimeout(() => searchInputRef.current?.focus(), 100);
               }}
               className="flex md:hidden"
@@ -171,11 +174,11 @@ export function Header({ onStockSelect }: HeaderProps) {
       </header>
 
       {/* Search Overlay */}
-      {searchOpen && (
+      {isSearchOpen && (
         <div
           className="fixed inset-0 z-[100]"
           onClick={() => {
-            setSearchOpen(false);
+            closeSearch();
             setSearchQuery("");
           }}
         >
@@ -200,7 +203,7 @@ export function Header({ onStockSelect }: HeaderProps) {
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Escape") {
-                      setSearchOpen(false);
+                      closeSearch();
                       setSearchQuery("");
                     }
                   }}
@@ -208,7 +211,7 @@ export function Header({ onStockSelect }: HeaderProps) {
                 />
                 <button
                   onClick={() => {
-                    setSearchOpen(false);
+                    closeSearch();
                     setSearchQuery("");
                   }}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"

@@ -5,7 +5,7 @@ import { clerkClient, getAuth, clerkMiddleware  } from "@clerk/express";
 const router = Router();
 
 // User sync endpoint - validates Clerk token and creates/updates user in database
-router.get("/sync", async (req, res) => {
+router.post("/sync", async (req, res) => {
   try {
     const { userId, isAuthenticated } = getAuth(req);
     if (!isAuthenticated || !userId) {

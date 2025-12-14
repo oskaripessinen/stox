@@ -1,6 +1,14 @@
 "use client";
 
 import React from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -14,11 +22,39 @@ type StockQuote = {
   volume: number;
 };
 
-function SortIndicator({ column, sortBy, sortOrder }: { column: string; sortBy: string; sortOrder: "asc" | "desc" }) {
-  if (sortBy !== column) {
-    return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
-  }
-  return sortOrder === "asc" ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />;
+function SortableHeader({
+  column,
+  sortBy,
+  sortOrder,
+  onSort,
+  children,
+  className,
+}: {
+  column: string;
+  sortBy: string;
+  sortOrder: "asc" | "desc";
+  onSort: (col: string) => void;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const isSorted = sortBy === column;
+  return (
+    <TableHead className={className}>
+      <button
+        onClick={() => onSort(column)}
+        className={`flex items-center hover:text-foreground transition-colors w-full ${
+          className?.includes('text-right') ? 'justify-end' : ''
+        }`}
+      >
+        {children}
+        {isSorted ? (
+          sortOrder === 'asc' ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />
+        ) : (
+          <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />
+        )}
+      </button>
+    </TableHead>
+  );
 }
 
 export default function StockList({
@@ -38,8 +74,6 @@ export default function StockList({
   sortOrder: "asc" | "desc";
   onSort: (col: string) => void;
 }) {
-  // Use the top-level SortIndicator component created above
-
   return (
     <Card>
       <CardHeader>
@@ -58,9 +92,10 @@ export default function StockList({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => onSort("sp500")}>S&P 500</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onSort("nasdaq")}>NASDAQ</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onSort("dow")}>DOW JONES</DropdownMenuItem>
+                  {/* These should probably trigger a state change, not a sort */}
+                  <DropdownMenuItem>S&P 500</DropdownMenuItem>
+                  <DropdownMenuItem>NASDAQ</DropdownMenuItem>
+                  <DropdownMenuItem>DOW JONES</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -68,50 +103,56 @@ export default function StockList({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="hidden md:grid grid-cols-4 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b border-border">
-              <button onClick={() => onSort("symbol")} className="flex items-center hover:text-foreground transition-colors text-left">
-            Symbol
-            <SortIndicator column="symbol" sortBy={sortBy} sortOrder={sortOrder} />
-          </button>
-            <button onClick={() => onSort("price")} className="flex items-center justify-end hover:text-foreground transition-colors">
-            Price
-            <SortIndicator column="price" sortBy={sortBy} sortOrder={sortOrder} />
-          </button>
-          <button onClick={() => onSort("change")} className="flex items-center justify-end hover:text-foreground transition-colors">
-            Change
-            <SortIndicator column="change" sortBy={sortBy} sortOrder={sortOrder} />
-          </button>
-          <button onClick={() => onSort("volume")} className="flex items-center justify-end hover:text-foreground transition-colors">
-            Volume
-            <SortIndicator column="volume" sortBy={sortBy} sortOrder={sortOrder} />
-          </button>
-        </div>
-        <div className="divide-y divide-border">
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : error ? (
-            <div className="text-center py-8 text-destructive">{error}</div>
-          ) : sortedStocks.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">No stocks found</div>
-          ) : (
-            sortedStocks.map((stock) => (
-              <div
-                key={stock.symbol}
-                className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer"
-                onClick={() => onStockClick(stock.symbol)}
-              >
-                <div className="font-semibold text-foreground">{stock.symbol}</div>
-                <div className="text-right font-medium">{formatPrice(stock.price)}</div>
-                <div className={`text-right font-medium ${(stock.changePercent ?? 0) >= 0 ? "text-chart-3" : "text-destructive"}`}>
-                  {formatChange(stock.changePercent)}
-                </div>
-                <div className="text-right text-muted-foreground text-sm hidden md:block">{formatVolume(stock.volume)}</div>
-              </div>
-            ))
-          )}
-        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <SortableHeader column="symbol" sortBy={sortBy} sortOrder={sortOrder} onSort={onSort}>
+                Symbol
+              </SortableHeader>
+              <SortableHeader column="price" sortBy={sortBy} sortOrder={sortOrder} onSort={onSort} className="text-right">
+                Price
+              </SortableHeader>
+              <SortableHeader column="change" sortBy={sortBy} sortOrder={sortOrder} onSort={onSort} className="text-right">
+                Change
+              </SortableHeader>
+              <SortableHeader column="volume" sortBy={sortBy} sortOrder={sortOrder} onSort={onSort} className="text-right hidden md:table-cell">
+                Volume
+              </SortableHeader>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mx-auto" />
+                </TableCell>
+              </TableRow>
+            ) : error ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8 text-destructive">{error}</TableCell>
+              </TableRow>
+            ) : sortedStocks.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No stocks found</TableCell>
+              </TableRow>
+            ) : (
+              sortedStocks.map((stock) => (
+                <TableRow
+                  key={stock.symbol}
+                  onClick={() => onStockClick(stock.symbol)}
+                  className="cursor-pointer"
+                >
+                  <TableCell className="font-semibold">{stock.symbol}</TableCell>
+                  <TableCell className="text-right font-medium">{formatPrice(stock.price)}</TableCell>
+                  <TableCell className={`text-right font-medium ${(stock.changePercent ?? 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    {formatChange(stock.changePercent)}
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground hidden md:table-cell">{formatVolume(stock.volume)}</TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </CardContent>
     </Card>
   );

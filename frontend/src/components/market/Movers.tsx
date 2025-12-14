@@ -1,6 +1,14 @@
 "use client";
 
 import React from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronUp, ChevronDown, Loader2 } from "lucide-react";
 import { formatPrice, formatChange, formatMarketCap } from "@/lib/api";
@@ -12,6 +20,37 @@ type MarketMover = {
   percent_change: number;
   marketCap?: number;
 };
+
+function MoverTable({ movers, onSelect, type }: { movers: MarketMover[], onSelect: (symbol: string) => void, type: "gainer" | "loser" }) {
+  const changeColor = type === "gainer" ? "text-green-600" : "text-red-600";
+  
+  if (movers.length === 0) {
+    return <p className="text-sm text-muted-foreground text-center py-2">No {type === "gainer" ? "gainers" : "losers"}</p>;
+  }
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Symbol</TableHead>
+          <TableHead className="text-right">Price</TableHead>
+          <TableHead className="text-right">Change</TableHead>
+          <TableHead className="text-right">Mkt Cap</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {movers.map((stock) => (
+          <TableRow key={stock.symbol} onClick={() => onSelect(stock.symbol)} className="cursor-pointer">
+            <TableCell className="font-semibold">{stock.symbol}</TableCell>
+            <TableCell className="text-right font-medium">{formatPrice(stock.price)}</TableCell>
+            <TableCell className={`text-right font-medium ${changeColor}`}>{formatChange(stock.percent_change)}</TableCell>
+            <TableCell className="text-right text-muted-foreground">{stock.marketCap && stock.marketCap > 0 ? formatMarketCap(stock.marketCap) : "-"}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
 
 export default function Movers({
   topGainers,
@@ -25,97 +64,39 @@ export default function Movers({
   onSelect: (symbol: string) => void;
 }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-90">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Card>
-        <CardHeader className="">
+        <CardHeader>
           <div className="flex items-center gap-2">
-            <ChevronUp strokeWidth={3} className="h-5 w-5 text-chart-3" />
-            <CardTitle className="text-base mb-0 pb-0">Top Gainers</CardTitle>
+            <ChevronUp strokeWidth={3} className="h-5 w-5 text-green-600" />
+            <CardTitle className="text-base">Top Gainers</CardTitle>
           </div>
         </CardHeader>
-        <CardContent className="h-full">
-          {/* Column headers */}
-          <div className="hidden md:flex items-center justify-between text-xs text-muted-foreground px-2 -mt-1 mb-2">
-            <div className="w-1/4">Symbol</div>
-            <div className="w-1/4 text-right">Price</div>
-            <div className="w-1/4 text-right">Change</div>
-            <div className="w-1/4 text-right">Mkt Cap</div>
-          </div>
+        <CardContent>
           {loading ? (
-            <div className="flex justify-center h-full items-center -mt-7">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            <div className="flex justify-center items-center h-full py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : topGainers.length > 0 ? (
-            topGainers.map((stock, i) => (
-              <div
-                key={stock.symbol}
-                className={`flex items-center justify-between py-4 px-3 hover:bg-muted/50 transition-colors cursor-pointer ${i == 4 ? "border-y" : "border-t"} rounded-0`}
-                onClick={() => onSelect(stock.symbol)}
-
-              >
-                <div className="w-1/4">
-                  <p className="font-semibold text-foreground text-xs">{stock.symbol}</p>
-                </div>
-                <div className="w-1/4 text-right">
-                  <p className="font-semibold text-foreground text-xs">{formatPrice(stock.price)}</p>
-                </div>
-                <div className="w-1/4 text-right">
-                  <p className="text-xs font-medium text-chart-3">{formatChange(stock.percent_change)}</p>
-                </div>
-                <div className="w-1/4 text-right">
-                  <p className="text-xs text-muted-foreground">{stock.marketCap && stock.marketCap > 0 ? formatMarketCap(stock.marketCap) : "-"}</p>
-                </div>
-              </div>
-            ))
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-2">No gainers</p>
+            <MoverTable movers={topGainers} onSelect={onSelect} type="gainer" />
           )}
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader className="">
+        <CardHeader>
           <div className="flex items-center gap-2">
-            <ChevronDown strokeWidth={3} className="h-5 w-5 text-destructive" />
+            <ChevronDown strokeWidth={3} className="h-5 w-5 text-red-600" />
             <CardTitle className="text-base">Top Losers</CardTitle>
           </div>
         </CardHeader>
-        <CardContent className="h-full justify-center items-center">
-          {/* Column headers */}
-          <div className="hidden md:flex items-center justify-between text-xs text-muted-foreground px-2 -mt-1 mb-2">
-            <div className="w-1/4">Symbol</div>
-            <div className="w-1/4 text-right">Price</div>
-            <div className="w-1/4 text-right">Change</div>
-            <div className="w-1/4 text-right">Mkt Cap</div>
-          </div>
+        <CardContent>
           {loading ? (
-            <div className="flex justify-center h-full items-center -mt-7">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            <div className="flex justify-center items-center h-full py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : topLosers.length > 0 ? (
-            topLosers.map((stock, i) => (
-              <div
-                key={stock.symbol}
-                className={`flex items-center justify-between py-4 px-3 hover:bg-muted/50 transition-colors cursor-pointer ${i == 4 ? "border-y" : "border-t"} rounded-0`}
-                onClick={() => onSelect(stock.symbol)}
-              >
-                <div className="w-1/4">
-                  <p className="font-semibold text-foreground text-xs">{stock.symbol}</p>
-                </div>
-                <div className="w-1/4 text-right">
-                  <p className="font-semibold text-foreground text-xs">{formatPrice(stock.price)}</p>
-                </div>
-                <div className="w-1/4 text-right">
-                  <p className="text-xs font-medium text-destructive">{formatChange(stock.percent_change)}</p>
-                </div>
-                <div className="w-1/4 text-right">
-                  <p className="text-xs text-muted-foreground">{stock.marketCap && stock.marketCap > 0 ? formatMarketCap(stock.marketCap) : "-"}</p>
-                </div>
-              </div>
-            ))
-            
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-2">No losers</p>
+            <MoverTable movers={topLosers} onSelect={onSelect} type="loser" />
           )}
         </CardContent>
       </Card>

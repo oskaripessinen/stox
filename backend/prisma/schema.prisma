@@ -20,6 +20,29 @@ model User {
   firstName String?
   lastName  String?
   imageUrl  String?
+  watchlists  Watchlist[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Watchlist {
+  id        String   @id @default(cuid())
+  name      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  items     WatchlistItem[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, name])
+}
+
+model WatchlistItem {
+  id          String   @id @default(cuid())
+  watchlistId String
+  watchlist   Watchlist @relation(fields: [watchlistId], references: [id])
+  symbol      String
+  createdAt   DateTime @default(now())
+
+  @@unique([watchlistId, symbol])
 }

@@ -20,7 +20,7 @@ export function AuthSync() {
         if (!token) return;
 
         const response = await fetch(`${BACKEND_URL}/api/auth/sync`, {
-          method: "GET",
+          method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
           },

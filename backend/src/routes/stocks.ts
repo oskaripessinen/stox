@@ -116,7 +116,27 @@ router.get("/indices", async (req: Request, res: Response) => {
           console.log(`Cache HIT for ${symbol} ${c.tf}:${c.limit} => ${cachedBars.bars.length}`);
           return cachedBars.bars.map((b: any) => ({ Timestamp: b.timestamp, ClosePrice: b.close, OpenPrice: b.open, HighPrice: b.high, LowPrice: b.low, Volume: b.volume, VWAP: b.vwap }));
         }
-        const bars = await getBars(symbol, c.tf, c.start, undefined, c.limit);
+        let bars = await getBars(symbol, c.tf, c.start, undefined, c.limit);
+        
+        // If no bars returned on weekend for daily view, try to get Friday's data
+        if (bars.length === 0 && (c.tf === '1Day' || c.tf === '1Hour')) {
+            const today = new Date();
+            const dayOfWeek = today.getUTCDay(); // Sunday = 0, Saturday = 6
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                const lastFriday = new Date();
+                const daysToSubtract = dayOfWeek === 0 ? 2 : 1;
+                lastFriday.setUTCDate(lastFriday.getUTCDate() - daysToSubtract);
+
+                const fridayEnd = new Date(lastFriday);
+                fridayEnd.setUTCHours(21, 0, 0, 0); // 4 PM ET
+
+                const fridayStart = new Date(lastFriday);
+                fridayStart.setUTCHours(13, 30, 0, 0); // 9:30 AM ET
+                
+                bars = await getBars(symbol, '5Min', fridayStart.toISOString(), fridayEnd.toISOString(), 78);
+            }
+        }
+
         if (bars && bars.length > 0) {
           console.log(`Fetched ${bars.length} bars for ${symbol} at ${c.tf}`);
           await setCache(cacheKeyBars, {
@@ -219,7 +239,27 @@ router.post("/indices/refresh", requireAuth, async (req: Request, res: Response)
           console.log(`Cache HIT for ${symbol} ${c.tf}:${c.limit} => ${cachedBars.bars.length}`);
           return cachedBars.bars.map((b: any) => ({ Timestamp: b.timestamp, ClosePrice: b.close, OpenPrice: b.open, HighPrice: b.high, LowPrice: b.low, Volume: b.volume, VWAP: b.vwap }));
         }
-        const bars = await getBars(symbol, c.tf, c.start, undefined, c.limit);
+        let bars = await getBars(symbol, c.tf, c.start, undefined, c.limit);
+
+        // If no bars returned on weekend for daily view, try to get Friday's data
+        if (bars.length === 0 && (c.tf === '1Day' || c.tf === '1Hour')) {
+            const today = new Date();
+            const dayOfWeek = today.getUTCDay(); // Sunday = 0, Saturday = 6
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                const lastFriday = new Date();
+                const daysToSubtract = dayOfWeek === 0 ? 2 : 1;
+                lastFriday.setUTCDate(lastFriday.getUTCDate() - daysToSubtract);
+
+                const fridayEnd = new Date(lastFriday);
+                fridayEnd.setUTCHours(21, 0, 0, 0); // 4 PM ET
+
+                const fridayStart = new Date(lastFriday);
+                fridayStart.setUTCHours(13, 30, 0, 0); // 9:30 AM ET
+                
+                bars = await getBars(symbol, '5Min', fridayStart.toISOString(), fridayEnd.toISOString(), 78);
+            }
+        }
+        
         if (bars && bars.length > 0) {
           console.log(`Fetched ${bars.length} bars for ${symbol} at ${c.tf}`);
           await setCache(cacheKeyBars, {
@@ -501,11 +541,32 @@ router.get("/:symbol/details", async (req: Request, res: Response) => {
       return;
     }
 
-    const [profile, quote, bars] = await Promise.all([
+    let [profile, quote, bars] = await Promise.all([
       getCompanyProfile(symbol.toUpperCase()),
       getStockQuote(symbol.toUpperCase()),
       getBars(symbol.toUpperCase(), timeframe as string, start as string | undefined, end as string | undefined, limitNum),
     ]);
+
+    // If no bars are returned for short timeframes on a weekend, fetch last Friday's data.
+    if (bars.length === 0 && ((timeframe === '1Hour' && limitNum === 24) || (timeframe === '1Day' && limitNum === 1))) {
+      const today = new Date();
+      const dayOfWeek = today.getUTCDay(); // Sunday = 0, Saturday = 6
+
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+          const lastFriday = new Date();
+          const daysToSubtract = dayOfWeek === 0 ? 2 : 1;
+          lastFriday.setUTCDate(lastFriday.getUTCDate() - daysToSubtract);
+          
+          const fridayEnd = new Date(lastFriday);
+          fridayEnd.setUTCHours(21, 0, 0, 0); // 4 PM ET is 21:00 UTC
+
+          const fridayStart = new Date(lastFriday);
+          fridayStart.setUTCHours(13, 30, 0, 0); // 9:30 AM ET is 13:30 UTC
+          
+          // Refetch bars for last Friday with a good intraday resolution
+          bars = await getBars(symbol.toUpperCase(), '5Min', fridayStart.toISOString(), fridayEnd.toISOString(), 78);
+      }
+    }
 
     const history = {
       symbol: symbol.toUpperCase(),

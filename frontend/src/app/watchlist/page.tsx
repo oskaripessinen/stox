@@ -15,11 +15,18 @@ import { Stock, StockTable } from "@/components/market/stock-table";
 import { useSearch } from "@/context/search-context";
 import {
   addToWatchlist,
-  getWatchlist,
+  getWatchlists,
+  createWatchlist,
   removeFromWatchlist,
   StockQuote,
   Watchlist,
 } from "@/lib/api";
+
+type WatchlistItem = {
+  id: string;
+  symbol: string;
+  createdAt: string;
+};
 
 
 
@@ -28,8 +35,8 @@ import {
 type WatchlistHeaderProps = {
   onNewStockClick: () => void;
   watchlists: Record<string, Watchlist>;
-  setWatchlist: (watchlist: Watchlist) => void;
-  watchlist: Watchlist;
+  setWatchlist: (watchlist: Watchlist | null) => void;
+  watchlist: Watchlist | null;
 };
 
 
@@ -40,6 +47,7 @@ const allColumns: Record<string, { name: string; visible: boolean }> = {
   dailyChange: { name: "Daily Change", visible: true },
   weeklyChange: { name: "Weekly Change", visible: false },
   monthlyChange: { name: "Monthly Change", visible: false },
+  last30Days: { name: "Last 30 Days", visible: false },
   marketCap: { name: "Market Cap", visible: false },
   volume: { name: "Volume", visible: true },
   peRatio: { name: "P/E Ratio", visible: false },
@@ -128,34 +136,25 @@ function EmptyState({ onAddStockClick }: { onAddStockClick: () => void }) {
 const mapStockQuoteToStock = (quote: StockQuote): Stock => ({
   id: quote.symbol,
   ticker: quote.symbol,
-  companyName: quote.symbol, // Placeholder, ideally from profile
+  companyName: quote.symbol,
   price: quote.price,
   dailyChange: quote.changePercent ?? 0,
-  weeklyChange: 0, // Placeholder
-  monthlyChange: 0, // Placeholder
-  marketCap: 0, // Placeholder
+  weeklyChange: 0, 
+  monthlyChange: 0,
+  marketCap: 0,
   volume: quote.volume,
-  peRatio: 0, // Placeholder
-  last30Days: [], // Placeholder
+  peRatio: 0,
+  last30Days: [],
 });
 
 export default function WatchlistPage() {
 
-  const [watchlists, setWatchlists] = useState<Record<string, Watchlist>>({
-    default: {
-      id: "default",
-      name: "My First Stock Watchlist",
-      userId: "user123",
-      items: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-  });
-  const [watchlist, setWatchlist] = useState<Watchlist>(watchlists["default"]);
+  const [watchlists, setWatchlists] = useState<Record<string, Watchlist>>({});
+  const [watchlist, setWatchlist] = useState<Watchlist | null>(null);
 
   const [selectedStock, setSelectedStock] = useState<string | null>(null);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
-  const [stocks, setStocks] = useState<Stock[]>(watchlist.items);
+  const [stocks, setStocks] = useState<Stock[]>([]);
   const [loading, setLoading] = useState(true);
   const [visibleColumns, setVisibleColumns] = useState(allColumns);
   const { openSearch } = useSearch();
@@ -163,8 +162,47 @@ export default function WatchlistPage() {
   useEffect(() => {
     const fetchWatchlist = async () => {
       setLoading(true);
-      const watchlist = await getWatchlist("default");
-      setStocks(watchlist?.items ? watchlist.items : []);
+      const lists = await getWatchlists();
+      if (lists.length === 0) {
+        const created = await createWatchlist("My First Stock Watchlist");
+        if (created) {
+          setWatchlists({ [created.id]: created });
+          setWatchlist(created);
+          setStocks((created.items ?? []).map((it: WatchlistItem) => ({
+            id: it.symbol,
+            ticker: it.symbol,
+            companyName: it.symbol,
+            price: 0,
+            dailyChange: 0,
+            weeklyChange: 0,
+            monthlyChange: 0,
+            marketCap: 0,
+            volume: 0,
+            peRatio: 0,
+            last30Days: [],
+          })));
+        } else {
+          setStocks([]);
+        }
+      } else {
+        const map: Record<string, Watchlist> = {};
+        lists.forEach((wl: Watchlist) => (map[wl.id] = wl));
+        setWatchlists(map);
+        setWatchlist(lists[0]);
+        setStocks((lists[0].items ?? []).map((it: WatchlistItem) => ({
+          id: it.symbol,
+          ticker: it.symbol,
+          companyName: it.symbol,
+          price: 0,
+          dailyChange: 0,
+          weeklyChange: 0,
+          monthlyChange: 0,
+          marketCap: 0,
+          volume: 0,
+          peRatio: 0,
+          last30Days: [],
+        })));
+      }
       setLoading(false);
     };
     fetchWatchlist();
@@ -173,9 +211,27 @@ export default function WatchlistPage() {
 
 
   const handleSearchSelect = async (symbol: string) => {
-    const newStock = await addToWatchlist(watchlist.id, symbol);
-    if (newStock) {
-      setStocks(prevStocks => [...prevStocks, newStock.items.find(item => item.ticker === symbol)!]);
+    if (!watchlist) return;
+    const updated = await addToWatchlist(watchlist.id, symbol);
+    if (updated) {
+
+      setWatchlist(updated);
+
+      const items = (updated.items ?? []).map((it: WatchlistItem) => ({
+        id: it.symbol,
+        ticker: it.symbol,
+        companyName: it.symbol,
+        price: 0,
+        dailyChange: 0,
+        weeklyChange: 0,
+        monthlyChange: 0,
+        marketCap: 0,
+        volume: 0,
+        peRatio: 0,
+        last30Days: [],
+      } as Stock));
+      setStocks(items);
+      setWatchlists((prev) => ({ ...prev, [updated.id]: updated }));
     }
   };
 
@@ -185,6 +241,7 @@ export default function WatchlistPage() {
   };
 
   const handleRemoveStock = async (ticker: string) => {
+    if (!watchlist) return;
     const { success } = await removeFromWatchlist(watchlist.id, ticker);
     if (success) {
       setStocks(prevStocks => prevStocks.filter(stock => stock.ticker !== ticker));

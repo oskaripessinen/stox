@@ -96,15 +96,21 @@ export interface StockProfile {
 }
 
 export interface Watchlist {
-    id: string;
-    name: string;
-    userId: string;
-    createdAt: string;
-    updatedAt: string;
-    items: Stock[];
-    _count?: {
-        items: number;
-    }
+  id: string;
+  name: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+  items: WatchlistItem[];
+  _count?: {
+      items: number;
+  }
+}
+
+export interface WatchlistItem {
+  id: string;
+  symbol: string;
+  createdAt: string;
 }
 
 
@@ -142,7 +148,9 @@ export async function searchStocks(query: string): Promise<SearchResult[]> {
  */
 export async function getWatchlists(): Promise<Watchlist[]> {
     try {
-        const res = await fetch(`${API_BASE_URL}/api/watchlists`);
+    const res = await fetch(`${API_BASE_URL}/api/watchlists`, {
+      credentials: 'include',
+    });
         if (!res.ok) return [];
         return res.json();
     } catch (error) {
@@ -156,11 +164,12 @@ export async function getWatchlists(): Promise<Watchlist[]> {
  */
 export async function createWatchlist(name: string): Promise<Watchlist | null> {
     try {
-        const res = await fetch(`${API_BASE_URL}/api/watchlists`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name }),
-        });
+    const res = await fetch(`${API_BASE_URL}/api/watchlists`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: 'include',
+      body: JSON.stringify({ name }),
+    });
         if (!res.ok) return null;
         return res.json();
     } catch (error) {
@@ -174,7 +183,7 @@ export async function createWatchlist(name: string): Promise<Watchlist | null> {
  */
 export async function getWatchlist(id: string): Promise<Watchlist | null> {
     try {
-        const res = await fetch(`${API_BASE_URL}/api/watchlists/${id}`);
+    const res = await fetch(`${API_BASE_URL}/api/watchlists/${id}`, { credentials: 'include' });
         if (!res.ok) return null;
         return res.json();
     } catch (error) {
@@ -188,11 +197,12 @@ export async function getWatchlist(id: string): Promise<Watchlist | null> {
  */
 export async function addToWatchlist(watchlistId: string, symbol: string): Promise<Watchlist | null> {
     try {
-        const res = await fetch(`${API_BASE_URL}/api/watchlists/${watchlistId}/stocks`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ symbol }),
-        });
+    const res = await fetch(`${API_BASE_URL}/api/watchlists/${watchlistId}/stocks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: 'include',
+      body: JSON.stringify({ symbol }),
+    });
         if (!res.ok) return null;
         return res.json();
     } catch (error) {
@@ -206,9 +216,10 @@ export async function addToWatchlist(watchlistId: string, symbol: string): Promi
  */
 export async function removeFromWatchlist(watchlistId: string, symbol: string): Promise<{ success: boolean }> {
     try {
-        const res = await fetch(`${API_BASE_URL}/api/watchlists/${watchlistId}/stocks/${symbol}`, {
-            method: "DELETE",
-        });
+    const res = await fetch(`${API_BASE_URL}/api/watchlists/${watchlistId}/stocks/${symbol}`, {
+      method: "DELETE",
+      credentials: 'include',
+    });
         return { success: res.ok };
     } catch (error) {
         console.error("Error removing from watchlist:", error);

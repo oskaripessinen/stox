@@ -21,6 +21,7 @@ router.get('/', async (req, res) => {
         const watchlists = await prisma.watchlist.findMany({
             where: { userId: user.id },
             include: {
+                items: true,
                 _count: {
                     select: { items: true }
                 }
@@ -63,7 +64,13 @@ router.post('/', async (req, res) => {
             },
         });
 
-        res.status(201).json(watchlist);
+        // Return the created watchlist including items (empty) so the client can render
+        const createdWithItems = await prisma.watchlist.findUnique({
+            where: { id: watchlist.id },
+            include: { items: true },
+        });
+
+        res.status(201).json(createdWithItems || watchlist);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
@@ -129,14 +136,20 @@ router.post('/:id/stocks', async (req, res) => {
             return res.status(404).json({ error: 'Watchlist not found' });
         }
 
-        const watchlistItem = await prisma.watchlistItem.create({
+        await prisma.watchlistItem.create({
             data: {
                 watchlistId: watchlist.id,
                 symbol,
             },
         });
 
-        res.status(201).json(watchlistItem);
+        // Return the updated watchlist with items so the client can refresh local state
+        const updated = await prisma.watchlist.findUnique({
+            where: { id: watchlist.id },
+            include: { items: true },
+        });
+
+        res.status(201).json(updated);
     } catch (error) {
         const err: any = error;
         if (err?.code === 'P2002') {

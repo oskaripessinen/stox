@@ -105,6 +105,60 @@ export async function searchStocks(query: string): Promise<SearchResult[]> {
   }
 }
 
+export interface WatchlistItem {
+  id: string;
+  watchlistId: string;
+  symbol: string;
+  createdAt: string;
+}
+
+/**
+ * Get user watchlist
+ */
+export async function getWatchlist(): Promise<WatchlistItem[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/watchlist`);
+    if (!res.ok) return [];
+    return res.json();
+  } catch (error) {
+    console.error("Error fetching watchlist:", error);
+    return [];
+  }
+}
+
+/**
+ * Add a stock to the watchlist
+ */
+export async function addToWatchlist(symbol: string): Promise<WatchlistItem | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/watchlist`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol }),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch (error) {
+    console.error("Error adding to watchlist:", error);
+    return null;
+  }
+}
+
+/**
+ * Remove a stock from the watchlist
+ */
+export async function removeFromWatchlist(symbol: string): Promise<{ success: boolean }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/watchlist/${symbol}`, {
+      method: "DELETE",
+    });
+    return { success: res.ok };
+  } catch (error) {
+    console.error("Error removing from watchlist:", error);
+    return { success: false };
+  }
+}
+
 /**
  * Get top market movers (gainers and losers)
  */

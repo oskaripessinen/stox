@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/layout/header";
 import { StockProfileDialog } from "@/components/stocks/stock-profile-dialog";
 import { Button } from "@/components/ui/button";
@@ -10,10 +10,17 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PlusIcon, Star, Settings, MoreHorizontal } from "lucide-react";
+import { PlusIcon, Star, MoreHorizontal } from "lucide-react";
 import { Stock, StockTable } from "@/components/market/stock-table";
 import { useSearch } from "@/context/search-context";
-import { getStockDetails, getStockHistory } from "@/lib/api";
+import {
+  addToWatchlist,
+  getMultipleQuotes,
+  getStockQuote,
+  getWatchlist,
+  removeFromWatchlist,
+  StockQuote,
+} from "@/lib/api";
 
 const allColumns = {
   ticker: { name: "Ticker", visible: true },
@@ -39,32 +46,29 @@ type WatchlistHeaderProps = {
 function WatchlistHeader({ onNewStockClick, columns, onColumnToggle }: WatchlistHeaderProps) {
   return (
     <div className="flex items-center justify-between mb-6">
-      <div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
         <h1 className="text-2xl font-bold text-foreground">My First Stock Watchlist</h1>
-      </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-48">
+          {Object.entries(columns).map(([key, column]) => (
+            <DropdownMenuCheckboxItem
+              key={key}
+              checked={column.visible}
+              onCheckedChange={() => onColumnToggle(key as ColumnKey)}
+            >
+              {column.name}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
       <div className="flex items-center gap-2">
-        <Button onClick={onNewStockClick}>
-          <PlusIcon className="mr-2 h-4 w-4" />
+        <Button onClick={onNewStockClick} className="text-white">
+          <PlusIcon className="h-4 w-4" />
           New Stock
         </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline">Customize</Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            {Object.entries(columns).map(([key, { name, visible }]) => (
-              <DropdownMenuCheckboxItem
-                key={key}
-                checked={visible}
-                onCheckedChange={() => onColumnToggle(key as ColumnKey)}
-              >
-                {name}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <Button variant="ghost" size="icon">
-          <MoreHorizontal className="h-4 w-4" />
+        <Button variant="secondary" size="icon">
+          <MoreHorizontal className="size-4" />
         </Button>
       </div>
     </div>
@@ -74,7 +78,7 @@ function WatchlistHeader({ onNewStockClick, columns, onColumnToggle }: Watchlist
 function WatchlistTabs() {
   return (
     <div className="border-b">
-      <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+      <nav className="-mb-px flex space-x-6" aria-label="Tabs">
         <a
           href="#"
           className="border-primary text-primary whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
@@ -99,30 +103,60 @@ function WatchlistTabs() {
 }
 
 function EmptyState({ onAddStockClick }: { onAddStockClick: () => void }) {
-    return (
-        <div className="text-center py-20">
-            <div className="flex justify-center mb-4">
-                <Star className="h-12 w-12 text-muted-foreground" />
-            </div>
-            <h2 className="text-xl font-semibold">Your stock watchlist is empty</h2>
-            <p className="text-muted-foreground mt-2 mb-4">
-                Add stocks to track prices, performance, and key metrics in one place.
-            </p>
-            <Button onClick={onAddStockClick}>
-                <PlusIcon className="mr-2 h-4 w-4" />
-                Add your first stock
-            </Button>
-        </div>
-    );
+  return (
+    <div className="text-center py-20">
+      <div className="flex justify-center mb-4">
+        <Star className="h-12 w-12 text-muted-foreground" />
+      </div>
+      <h2 className="text-xl font-semibold">Your stock watchlist is empty</h2>
+      <p className="text-muted-foreground mt-2 mb-4">
+        Add stocks to track prices, performance, and key metrics in one place.
+      </p>
+      <Button onClick={onAddStockClick} className="text-white">
+        <PlusIcon className="h-4 w-4" />
+        Add your first stock
+      </Button>
+    </div>
+  );
 }
 
+const mapStockQuoteToStock = (quote: StockQuote): Stock => ({
+  id: quote.symbol,
+  ticker: quote.symbol,
+  companyName: quote.symbol, // Placeholder, ideally from profile
+  price: quote.price,
+  dailyChange: quote.changePercent ?? 0,
+  weeklyChange: 0, // Placeholder
+  monthlyChange: 0, // Placeholder
+  marketCap: 0, // Placeholder
+  volume: quote.volume,
+  peRatio: 0, // Placeholder
+  last30Days: [], // Placeholder
+});
 
 export default function WatchlistPage() {
   const [selectedStock, setSelectedStock] = useState<string | null>(null);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [stocks, setStocks] = useState<Stock[]>([]);
+  const [loading, setLoading] = useState(true);
   const [visibleColumns, setVisibleColumns] = useState(allColumns);
   const { openSearch } = useSearch();
+
+  useEffect(() => {
+    const fetchWatchlist = async () => {
+      setLoading(true);
+      const watchlistItems = await getWatchlist();
+      if (watchlistItems.length > 0) {
+        const symbols = watchlistItems.map((item) => item.symbol);
+        const quotes = await getMultipleQuotes(symbols);
+        setStocks(quotes.map(mapStockQuoteToStock));
+      } else {
+        setStocks([]);
+      }
+      setLoading(false);
+    };
+    fetchWatchlist();
+  }, []);
 
   const handleColumnToggle = (columnKey: ColumnKey) => {
     setVisibleColumns(prev => ({
@@ -132,37 +166,25 @@ export default function WatchlistPage() {
   };
 
   const handleSearchSelect = async (symbol: string) => {
-    const [newStockDetails, history] = await Promise.all([
-      getStockDetails(symbol),
-      getStockHistory(symbol, "1Day", 30),
-    ]);
-
-    if (newStockDetails && newStockDetails.profile && newStockDetails.quote) {
-      const newStock: Stock = {
-        id: newStockDetails.profile.symbol,
-        ticker: newStockDetails.profile.symbol,
-        companyName: newStockDetails.profile.name,
-        price: newStockDetails.quote.price,
-        dailyChange: newStockDetails.quote.changePercent ?? 0,
-        weeklyChange: 0, // Placeholder
-        monthlyChange: 0, // Placeholder
-        marketCap: newStockDetails.profile.marketCap,
-        volume: newStockDetails.quote.volume,
-        peRatio: 0, // Placeholder
-        last30Days: history?.bars || [],
-      };
-
-      setStocks(prevStocks => [...prevStocks, newStock]);
+    const newItem = await addToWatchlist(symbol);
+    if (newItem) {
+      const newQuote = await getStockQuote(symbol);
+      if (newQuote) {
+        setStocks(prevStocks => [...prevStocks, mapStockQuoteToStock(newQuote)]);
+      }
     }
   };
 
   const handleStockClick = (symbol: string) => {
     setSelectedStock(symbol);
     setProfileDialogOpen(true);
-  }
+  };
 
-  const handleRemoveStock = (ticker: string) => {
-    setStocks(prevStocks => prevStocks.filter(stock => stock.ticker !== ticker));
+  const handleRemoveStock = async (ticker: string) => {
+    const { success } = await removeFromWatchlist(ticker);
+    if (success) {
+      setStocks(prevStocks => prevStocks.filter(stock => stock.ticker !== ticker));
+    }
   };
 
   return (
@@ -171,10 +193,26 @@ export default function WatchlistPage() {
 
       <main className="pt-20 pb-8 px-4 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <WatchlistHeader onNewStockClick={openSearch} columns={visibleColumns} onColumnToggle={handleColumnToggle} />
+          <WatchlistHeader
+            onNewStockClick={openSearch}
+            columns={visibleColumns}
+            onColumnToggle={handleColumnToggle}
+          />
           <WatchlistTabs />
           <div className="mt-8">
-            {stocks.length === 0 ? <EmptyState onAddStockClick={openSearch} /> : <StockTable stocks={stocks} onStockClick={handleStockClick} onRemoveStock={handleRemoveStock} columns={visibleColumns} loading={false} />}
+            {loading ? (
+              <div className="text-center">Loading...</div>
+            ) : stocks.length === 0 ? (
+              <EmptyState onAddStockClick={openSearch} />
+            ) : (
+              <StockTable
+                stocks={stocks}
+                onStockClick={handleStockClick}
+                onRemoveStock={handleRemoveStock}
+                columns={visibleColumns}
+                loading={loading}
+              />
+            )}
           </div>
         </div>
 

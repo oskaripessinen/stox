@@ -15,35 +15,41 @@ import { Stock, StockTable } from "@/components/market/stock-table";
 import { useSearch } from "@/context/search-context";
 import {
   addToWatchlist,
-  getMultipleQuotes,
-  getStockQuote,
   getWatchlist,
   removeFromWatchlist,
   StockQuote,
+  Watchlist,
 } from "@/lib/api";
 
-const allColumns = {
-  ticker: { name: "Ticker", visible: true },
-  companyName: { name: "Company Name", visible: true },
-  price: { name: "Price", visible: true },
-  dailyChange: { name: "1D %", visible: true },
-  weeklyChange: { name: "1W %", visible: true },
-  monthlyChange: { name: "1M %", visible: true },
-  marketCap: { name: "Market Cap", visible: true },
-  volume: { name: "Volume", visible: true },
-  peRatio: { name: "P/E", visible: false },
-  last30Days: { name: "Last 30 Days", visible: false },
-};
 
-type ColumnKey = keyof typeof allColumns;
+
+
 
 type WatchlistHeaderProps = {
   onNewStockClick: () => void;
-  columns: typeof allColumns;
-  onColumnToggle: (key: ColumnKey) => void;
+  watchlists: Record<string, Watchlist>;
+  setWatchlist: (watchlist: Watchlist) => void;
+  watchlist: Watchlist;
 };
 
-function WatchlistHeader({ onNewStockClick, columns, onColumnToggle }: WatchlistHeaderProps) {
+
+const allColumns: Record<string, { name: string; visible: boolean }> = {
+  ticker: { name: "Ticker", visible: true },
+  companyName: { name: "Company Name", visible: true },
+  price: { name: "Price", visible: true },
+  dailyChange: { name: "Daily Change", visible: true },
+  weeklyChange: { name: "Weekly Change", visible: false },
+  monthlyChange: { name: "Monthly Change", visible: false },
+  marketCap: { name: "Market Cap", visible: false },
+  volume: { name: "Volume", visible: true },
+  peRatio: { name: "P/E Ratio", visible: false },
+  
+};
+
+function WatchlistHeader({ onNewStockClick, watchlists, setWatchlist, watchlist }: WatchlistHeaderProps) {
+
+
+
   return (
     <div className="flex items-center justify-between mb-6">
       <DropdownMenu>
@@ -51,13 +57,12 @@ function WatchlistHeader({ onNewStockClick, columns, onColumnToggle }: Watchlist
         <h1 className="text-2xl font-bold text-foreground">My First Stock Watchlist</h1>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-48">
-          {Object.entries(columns).map(([key, column]) => (
+          {Object.entries(watchlists).map(([key, watchlist]) => (
             <DropdownMenuCheckboxItem
               key={key}
-              checked={column.visible}
-              onCheckedChange={() => onColumnToggle(key as ColumnKey)}
+              onCheckedChange={() => setWatchlist(watchlist)}
             >
-              {column.name}
+              {watchlist?.name}
             </DropdownMenuCheckboxItem>
           ))}
         </DropdownMenuContent>
@@ -135,9 +140,22 @@ const mapStockQuoteToStock = (quote: StockQuote): Stock => ({
 });
 
 export default function WatchlistPage() {
+
+  const [watchlists, setWatchlists] = useState<Record<string, Watchlist>>({
+    default: {
+      id: "default",
+      name: "My First Stock Watchlist",
+      userId: "user123",
+      items: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  });
+  const [watchlist, setWatchlist] = useState<Watchlist>(watchlists["default"]);
+
   const [selectedStock, setSelectedStock] = useState<string | null>(null);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
-  const [stocks, setStocks] = useState<Stock[]>([]);
+  const [stocks, setStocks] = useState<Stock[]>(watchlist.items);
   const [loading, setLoading] = useState(true);
   const [visibleColumns, setVisibleColumns] = useState(allColumns);
   const { openSearch } = useSearch();
@@ -145,33 +163,19 @@ export default function WatchlistPage() {
   useEffect(() => {
     const fetchWatchlist = async () => {
       setLoading(true);
-      const watchlistItems = await getWatchlist();
-      if (watchlistItems.length > 0) {
-        const symbols = watchlistItems.map((item) => item.symbol);
-        const quotes = await getMultipleQuotes(symbols);
-        setStocks(quotes.map(mapStockQuoteToStock));
-      } else {
-        setStocks([]);
-      }
+      const watchlist = await getWatchlist("default");
+      setStocks(watchlist?.items ? watchlist.items : []);
       setLoading(false);
     };
     fetchWatchlist();
   }, []);
 
-  const handleColumnToggle = (columnKey: ColumnKey) => {
-    setVisibleColumns(prev => ({
-      ...prev,
-      [columnKey]: { ...prev[columnKey], visible: !prev[columnKey].visible },
-    }));
-  };
+
 
   const handleSearchSelect = async (symbol: string) => {
-    const newItem = await addToWatchlist(symbol);
-    if (newItem) {
-      const newQuote = await getStockQuote(symbol);
-      if (newQuote) {
-        setStocks(prevStocks => [...prevStocks, mapStockQuoteToStock(newQuote)]);
-      }
+    const newStock = await addToWatchlist(watchlist.id, symbol);
+    if (newStock) {
+      setStocks(prevStocks => [...prevStocks, newStock.items.find(item => item.ticker === symbol)!]);
     }
   };
 
@@ -181,7 +185,7 @@ export default function WatchlistPage() {
   };
 
   const handleRemoveStock = async (ticker: string) => {
-    const { success } = await removeFromWatchlist(ticker);
+    const { success } = await removeFromWatchlist(watchlist.id, ticker);
     if (success) {
       setStocks(prevStocks => prevStocks.filter(stock => stock.ticker !== ticker));
     }
@@ -195,8 +199,9 @@ export default function WatchlistPage() {
         <div className="mx-auto max-w-7xl">
           <WatchlistHeader
             onNewStockClick={openSearch}
-            columns={visibleColumns}
-            onColumnToggle={handleColumnToggle}
+            watchlists={watchlists}
+            setWatchlist={setWatchlist}
+            watchlist={watchlist}
           />
           <WatchlistTabs />
           <div className="mt-8">

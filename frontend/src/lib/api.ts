@@ -23,6 +23,25 @@ export interface StockBar {
   vwap: number;
 }
 
+interface HistoryData {
+    timestamp: string;
+    close: number;
+}
+
+export type Stock = {
+    id: string;
+    ticker: string;
+    companyName: string;
+    price: number;
+    dailyChange: number | null;
+    weeklyChange: number;
+    monthlyChange: number;
+    marketCap?: number;
+    volume: number;
+    peRatio?: number;
+    last30Days: HistoryData[];
+};
+
 export interface IndexData {
   id: string;
   name: string;
@@ -76,6 +95,19 @@ export interface StockProfile {
   ipo: string;
 }
 
+export interface Watchlist {
+    id: string;
+    name: string;
+    userId: string;
+    createdAt: string;
+    updatedAt: string;
+    items: Stock[];
+    _count?: {
+        items: number;
+    }
+}
+
+
 /**
  * Get company profile from Finnhub
  */
@@ -105,58 +137,83 @@ export async function searchStocks(query: string): Promise<SearchResult[]> {
   }
 }
 
-export interface WatchlistItem {
-  id: string;
-  watchlistId: string;
-  symbol: string;
-  createdAt: string;
+/**
+ * Get all user watchlists
+ */
+export async function getWatchlists(): Promise<Watchlist[]> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/watchlists`);
+        if (!res.ok) return [];
+        return res.json();
+    } catch (error) {
+        console.error("Error fetching watchlists:", error);
+        return [];
+    }
 }
 
 /**
- * Get user watchlist
+ * Create a new watchlist
  */
-export async function getWatchlist(): Promise<WatchlistItem[]> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/watchlist`);
-    if (!res.ok) return [];
-    return res.json();
-  } catch (error) {
-    console.error("Error fetching watchlist:", error);
-    return [];
-  }
+export async function createWatchlist(name: string): Promise<Watchlist | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/watchlists`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name }),
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error("Error creating watchlist:", error);
+        return null;
+    }
 }
 
 /**
- * Add a stock to the watchlist
+ * Get a specific watchlist by id
  */
-export async function addToWatchlist(symbol: string): Promise<WatchlistItem | null> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/watchlist`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbol }),
-    });
-    if (!res.ok) return null;
-    return res.json();
-  } catch (error) {
-    console.error("Error adding to watchlist:", error);
-    return null;
-  }
+export async function getWatchlist(id: string): Promise<Watchlist | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/watchlists/${id}`);
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error("Error fetching watchlist:", error);
+        return null;
+    }
 }
 
 /**
- * Remove a stock from the watchlist
+ * Add a stock to a watchlist
  */
-export async function removeFromWatchlist(symbol: string): Promise<{ success: boolean }> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/watchlist/${symbol}`, {
-      method: "DELETE",
-    });
-    return { success: res.ok };
-  } catch (error) {
-    console.error("Error removing from watchlist:", error);
-    return { success: false };
-  }
+export async function addToWatchlist(watchlistId: string, symbol: string): Promise<Watchlist | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/watchlists/${watchlistId}/stocks`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ symbol }),
+        });
+        if (!res.ok) return null;
+        return res.json();
+    } catch (error) {
+        console.error("Error adding to watchlist:", error);
+        return null;
+    }
+}
+
+/**
+ * Remove a stock from a watchlist
+ */
+export async function removeFromWatchlist(watchlistId: string, symbol: string): Promise<{ success: boolean }> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/watchlists/${watchlistId}/stocks/${symbol}`, {
+            method: "DELETE",
+        });
+        return { success: res.ok };
+    } catch (error) {
+        console.error("Error removing from watchlist:", error);
+        return { success: false };
+    }
 }
 
 /**

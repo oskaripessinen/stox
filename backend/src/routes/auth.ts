@@ -1,6 +1,6 @@
 import { Router, Response } from "express";
 import { prisma } from "../lib/prisma";
-import { clerkClient, getAuth, clerkMiddleware  } from "@clerk/express";
+import { clerkClient, getAuth } from "@clerk/express";
 
 const router = Router();
 

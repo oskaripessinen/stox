@@ -9,8 +9,10 @@ import {
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuItem
 } from "@/components/ui/dropdown-menu";
-import { PlusIcon, Star, MoreHorizontal } from "lucide-react";
+import { PlusIcon, Star, MoreHorizontal, ChevronDown } from "lucide-react";
 import { Stock, StockTable } from "@/components/market/stock-table";
 import { useSearch } from "@/context/search-context";
 import {
@@ -19,7 +21,6 @@ import {
   createWatchlist,
   removeFromWatchlist,
   getMultipleQuotes,
-  StockQuote,
   Watchlist,
   WatchlistItem,
 } from "@/lib/api";
@@ -59,9 +60,12 @@ function WatchlistHeader({ onNewStockClick, watchlists, setWatchlist, watchlist 
     <div className="flex items-center justify-between mb-6">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <h1 className="text-2xl font-bold text-foreground">{watchlist?.name ?? "My First Stock Watchlist"}</h1>
+          <div className="flex items-center gap-3 cursor-pointer">
+            <h1 className="text-2xl font-bold text-foreground">{watchlist?.name ?? "My First Stock Watchlist"} </h1>
+            <ChevronDown/>
+          </div>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-48">
+        <DropdownMenuContent className="w-80">
           {Object.entries(watchlists).map(([key, wl]) => (
             <DropdownMenuCheckboxItem
               key={key}
@@ -71,6 +75,10 @@ function WatchlistHeader({ onNewStockClick, watchlists, setWatchlist, watchlist 
               {wl?.name}
             </DropdownMenuCheckboxItem>
           ))}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem>
+            <PlusIcon className="size-4" color="white"/>Create New Watchlist
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <div className="flex items-center gap-2">

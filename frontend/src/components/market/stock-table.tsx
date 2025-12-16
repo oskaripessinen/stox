@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { Badge } from "@/components/ui/badge";
+// Percent change is displayed as plain colored text now (was a Badge)
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -105,7 +105,7 @@ export function StockTable({ stocks = [], onStockClick, onRemoveStock, columns, 
   return (
     <Table>
       <TableHeader>
-        <TableRow>
+        <TableRow className="hover:bg-transparent">
           <TableHead className="w-10">#</TableHead>
           {columns.ticker.visible && <TableHead>Ticker</TableHead>}
           {columns.companyName.visible && <TableHead>Company Name</TableHead>}
@@ -136,24 +136,24 @@ export function StockTable({ stocks = [], onStockClick, onRemoveStock, columns, 
                 {columns.price.visible && <TableCell onClick={() => onStockClick(stock.ticker)}>${stock.price.toFixed(2)}</TableCell>}
                 {columns.dailyChange.visible && (
                   <TableCell onClick={() => onStockClick(stock.ticker)}>
-                    {typeof stock.dailyChange === 'number' ? (
-                      <Badge variant={stock.dailyChange >= 0 ? "success" : "destructive"}>
+                    {typeof stock.dailyChange === "number" ? (
+                      <span className={stock.dailyChange >= 0 ? "text-green-600" : "text-red-600"}>
                         {stock.dailyChange.toFixed(1)}%
-                      </Badge>
+                      </span>
                     ) : (
-                      'N/A'
+                      "N/A"
                     )}
                   </TableCell>
                 )}
                 {columns.weeklyChange.visible && <TableCell onClick={() => onStockClick(stock.ticker)}>
-                  <Badge variant={stock.weeklyChange >= 0 ? "success" : "destructive"}>
+                  <span className={stock.weeklyChange >= 0 ? "text-green-600" : "text-red-600"}>
                     {stock.weeklyChange.toFixed(1)}%
-                  </Badge>
+                  </span>
                 </TableCell>}
                 {columns.monthlyChange.visible && <TableCell onClick={() => onStockClick(stock.ticker)}>
-                  <Badge variant={stock.monthlyChange >= 0 ? "success" : "destructive"}>
+                  <span className={stock.monthlyChange >= 0 ? "text-green-600" : "text-red-600"}>
                     {stock.monthlyChange.toFixed(1)}%
-                  </Badge>
+                  </span>
                 </TableCell>}
                 {columns.marketCap.visible && <TableCell onClick={() => onStockClick(stock.ticker)}>{typeof stock.marketCap === 'number' ? formatMarketCap(stock.marketCap) : 'N/A'}</TableCell>}
                 {columns.volume.visible && <TableCell onClick={() => onStockClick(stock.ticker)}>{formatVolume(stock.volume)}</TableCell>}

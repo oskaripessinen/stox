@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import {
   Table,
   TableBody,
@@ -11,6 +13,13 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { X } from "lucide-react";
 import { formatMarketCap, formatVolume } from "@/lib/api";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
@@ -59,8 +68,8 @@ const LoadingSkeletonRow = ({ columns }: { columns: Columns }) => (
     {columns.volume.visible && <TableCell><div className="h-4 bg-muted rounded"></div></TableCell>}
     {columns.peRatio.visible && <TableCell><div className="h-4 bg-muted rounded"></div></TableCell>}
     {columns.last30Days.visible && <TableCell><div className="h-10 w-20 bg-muted rounded"></div></TableCell>}
-    <TableCell>
-        <div className="h-4 w-4 bg-muted rounded"></div>
+    <TableCell className="text-right pr-4">
+      <div className="h-4 w-4 bg-muted rounded ml-auto" />
     </TableCell>
   </TableRow>
 
@@ -79,6 +88,20 @@ export type StockTableProps = {
 
 
 export function StockTable({ stocks = [], onStockClick, onRemoveStock, columns, loading = false }: StockTableProps) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingTicker, setPendingTicker] = useState<string | null>(null);
+
+  const openConfirm = (ticker: string) => {
+    setPendingTicker(ticker);
+    setConfirmOpen(true);
+  };
+
+  const confirmRemove = () => {
+    if (!pendingTicker) return;
+    onRemoveStock(pendingTicker);
+    setConfirmOpen(false);
+    setPendingTicker(null);
+  };
   return (
     <Table>
       <TableHeader>
@@ -94,7 +117,6 @@ export function StockTable({ stocks = [], onStockClick, onRemoveStock, columns, 
           {columns.volume.visible && <TableHead>Volume</TableHead>}
           {columns.peRatio.visible && <TableHead>P/E</TableHead>}
           {columns.last30Days.visible && <TableHead>Last 30 Days</TableHead>}
-          <TableHead>Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -151,8 +173,16 @@ export function StockTable({ stocks = [], onStockClick, onRemoveStock, columns, 
                     </ResponsiveContainer>
                   </div>
                 </TableCell>}
-                <TableCell>
-                  <Button variant="ghost" size="icon" onClick={() => onRemoveStock(stock.ticker)}>
+                <TableCell className="text-right pr-4">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Remove ${stock.ticker}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openConfirm(stock.ticker);
+                    }}
+                  >
                     <X className="h-4 w-4" />
                   </Button>
                 </TableCell>
@@ -161,6 +191,19 @@ export function StockTable({ stocks = [], onStockClick, onRemoveStock, columns, 
           })
         )}
       </TableBody>
+      {/* Confirmation dialog for removing a stock */}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogTitle>Remove stock from watchlist</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to remove <strong>{pendingTicker}</strong> from your watchlist? This action cannot be undone.
+          </DialogDescription>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setConfirmOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmRemove}>Remove</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Table>
   );
 }

@@ -153,7 +153,7 @@ export default function Home() {
           <IndexCards indices={indices} loading={indicesLoading} />
 
         
-            <div className="lg:col-span-2 mb-16">
+            <div className="lg:col-span-2 mb-8">
               <Movers topGainers={topGainers} topLosers={topLosers} loading={moversLoading} onSelect={(s) => { setSelectedStock(s); setProfileDialogOpen(true); }} />
             </div>
           

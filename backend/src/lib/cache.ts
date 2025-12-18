@@ -42,6 +42,7 @@ export const TTL = {
   MOVERS: 60,         
   INDICES: 60,        
   DETAILS: 60,
+  HOLDINGS: 3600,
 };
 
 /**
@@ -100,6 +101,7 @@ export const cacheKeys = {
   search: (query: string) => `search:${query.toLowerCase()}`,
   movers: (top: number) => `movers:${top}`,
   indices: () => `indices`,
+  holdings: (symbol: string) => `etf:holdings:${symbol.toUpperCase()}`,
 };
 
 export default redis;

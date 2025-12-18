@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -13,7 +13,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
-import { formatPrice, formatVolume, formatChange } from "@/lib/api";
+import { formatPrice, formatVolume, formatChange, getIndexConstituents, getMultipleQuotes } from "@/lib/api";
+import { indices as mockIndices } from "@/lib/mock-data";
 
 type StockQuote = {
   symbol: string;
@@ -73,7 +74,57 @@ export default function StockList({
   sortBy: string;
   sortOrder: "asc" | "desc";
   onSort: (col: string) => void;
+  indices?: string[];
 }) {
+  // Default to S&P 500 on first render
+  const [selectedIndexSymbol, setSelectedIndexSymbol] = useState<string | null>("^GSPC");
+  const [selectedIndexLabel, setSelectedIndexLabel] = useState<string | null>("S&P 500");
+
+  const [constituentsLoading, setConstituentsLoading] = useState(false);
+  const [constituents, setConstituents] = useState<StockQuote[] | null>(null);
+
+  const INDEX_OPTIONS: { name: string; symbol: string }[] = [
+    { name: "S&P 500", symbol: "^GSPC" },
+    { name: "NASDAQ", symbol: "^IXIC" },
+    { name: "DOW JONES", symbol: "^DJI" },
+    { name: "RUSSELL 2000", symbol: "^RUT" },
+  ];
+
+  useEffect(() => {
+    if (!selectedIndexSymbol) {
+      setConstituents(null);
+      setSelectedIndexLabel(null);
+      return;
+    }
+
+    let cancelled = false;
+    async function fetchConstituents() {
+      setConstituentsLoading(true);
+      try {
+        const res = await getIndexConstituents(selectedIndexSymbol!, 20, 0);
+        if (!res || !res.constituents || res.constituents.length === 0) {
+          if (!cancelled) setConstituents([]);
+          return;
+        }
+
+        const symbols = res.constituents.map((c) => c.symbol).slice(0, 20);
+        const quotes = await getMultipleQuotes(symbols);
+        const mapped = quotes.map((q) => ({ symbol: q.symbol, price: q.price, changePercent: q.changePercent, volume: q.volume }));
+        if (!cancelled) setConstituents(mapped);
+      } catch (e) {
+        console.error("Failed to fetch constituents or quotes:", e);
+        if (!cancelled) setConstituents([]);
+      } finally {
+        if (!cancelled) setConstituentsLoading(false);
+      }
+    }
+
+    fetchConstituents();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedIndexSymbol]);
   return (
     <Card>
       <CardHeader>
@@ -85,17 +136,33 @@ export default function StockList({
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+                  <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="h-9 px-3 gap-2">
-                    Select Index
+                    {selectedIndexLabel ?? "Select index"}
                     <ChevronDown strokeWidth={2} className="h-4 w-4 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {/* These should probably trigger a state change, not a sort */}
-                  <DropdownMenuItem>S&P 500</DropdownMenuItem>
-                  <DropdownMenuItem>NASDAQ</DropdownMenuItem>
-                  <DropdownMenuItem>DOW JONES</DropdownMenuItem>
+                  {mockIndices && mockIndices.length > 0 ? (
+                    mockIndices.map((idx) => {
+                      // find symbol from known mapping, fallback to name
+                      const opt = INDEX_OPTIONS.find((o) => o.name.toLowerCase() === idx.name.toLowerCase());
+                      const symbol = opt ? opt.symbol : idx.name;
+                      return (
+                        <DropdownMenuItem
+                          key={idx.name}
+                          onClick={() => {
+                            setSelectedIndexSymbol(symbol);
+                            setSelectedIndexLabel(idx.name);
+                          }}
+                        >
+                          {idx.name}
+                        </DropdownMenuItem>
+                      );
+                    })
+                  ) : (
+                    <DropdownMenuItem disabled>No indices available</DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -121,7 +188,34 @@ export default function StockList({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {selectedIndexSymbol ? (
+              constituentsLoading ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mx-auto" />
+                  </TableCell>
+                </TableRow>
+              ) : constituents && constituents.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No constituents available</TableCell>
+                </TableRow>
+              ) : (
+                (constituents || []).map((stock) => (
+                  <TableRow
+                    key={stock.symbol}
+                    onClick={() => onStockClick(stock.symbol)}
+                    className="cursor-pointer"
+                  >
+                    <TableCell className="font-semibold">{stock.symbol}</TableCell>
+                    <TableCell className="text-right font-medium">{formatPrice(stock.price)}</TableCell>
+                    <TableCell className={`text-right font-medium ${(stock.changePercent ?? 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      {formatChange(stock.changePercent)}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground hidden md:table-cell">{formatVolume(stock.volume)}</TableCell>
+                  </TableRow>
+                ))
+              )
+            ) : loading ? (
               <TableRow>
                 <TableCell colSpan={4} className="text-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mx-auto" />

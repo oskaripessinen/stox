@@ -7,6 +7,7 @@ import {
   getTopMovers,
 } from "../lib/alpaca";
 import { getAllIndices, searchSymbols } from "../lib/yahoo";
+import { getEtfHoldings } from "../lib/yahoo";
 import { getCompanyProfile } from "../lib/finnhub";
 import { requireAuth } from "../middleware/auth";
 import { deleteCache } from "../lib/cache";
@@ -138,6 +139,53 @@ router.get("/indices", async (req: Request, res: Response) => {
         }
 
         if (bars && bars.length > 0) {
+
+/**
+ * GET /api/stocks/indices/:symbol/constituents
+ * Get top constituents for an index by mapping to a representative ETF and
+ * returning the ETF topHoldings list (paged)
+ */
+router.get("/indices/:symbol/constituents", async (req: Request, res: Response) => {
+  try {
+    const { symbol } = req.params;
+    const limit = Math.min(parseInt((req.query.limit as string) || "20", 10), 100);
+    const offset = Math.max(parseInt((req.query.offset as string) || "0", 10), 0);
+
+    if (!symbol) {
+      res.status(400).json({ error: "Index symbol is required" });
+      return;
+    }
+
+    const indexToEtf: Record<string, { index: string; etf: string; name: string }> = {
+      '^GSPC': { index: '^GSPC', etf: 'SPY', name: 'S&P 500' },
+      '^IXIC': { index: '^IXIC', etf: 'QQQ', name: 'NASDAQ' },
+      '^DJI':  { index: '^DJI',  etf: 'DIA', name: 'Dow Jones' },
+      '^RUT':  { index: '^RUT',  etf: 'IWM', name: 'Russell 2000' },
+    };
+
+    const mapping = indexToEtf[symbol];
+    if (!mapping) {
+      res.status(404).json({ error: `Unknown index symbol: ${symbol}` });
+      return;
+    }
+
+    const cacheKey = cacheKeys.holdings(mapping.etf);
+    const cached = await getCache(cacheKey);
+    let holdings = cached;
+    if (!holdings) {
+      holdings = await getEtfHoldings(mapping.etf);
+      // sort by weight desc if weight available
+      holdings.sort((a: any, b: any) => (b.weight ?? 0) - (a.weight ?? 0));
+      await setCache(cacheKey, holdings, TTL.HOLDINGS);
+    }
+
+    const sliced = (holdings || []).slice(offset, offset + limit);
+    res.json({ index: symbol, etf: mapping.etf, total: (holdings || []).length, constituents: sliced });
+  } catch (error) {
+    console.error("Error fetching index constituents:", error);
+    res.status(500).json({ error: "Failed to fetch index constituents" });
+  }
+});
           console.log(`Fetched ${bars.length} bars for ${symbol} at ${c.tf}`);
           await setCache(cacheKeyBars, {
             symbol: symbol.toUpperCase(),

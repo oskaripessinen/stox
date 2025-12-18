@@ -60,6 +60,29 @@ export interface IndexData {
   };
 }
 
+export interface EtfHolding {
+  symbol: string;
+  name: string;
+  weight?: number;
+  shares?: number;
+  marketValue?: number;
+}
+
+/**
+ * Get top constituents for an index (paged)
+ */
+export async function getIndexConstituents(indexSymbol: string, limit: number = 20, offset: number = 0): Promise<{ index: string; etf: string; total: number; constituents: EtfHolding[] } | null> {
+  try {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    const res = await fetch(`${API_BASE_URL}/api/stocks/indices/${encodeURIComponent(indexSymbol)}/constituents?${params}`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch (error) {
+    console.error("Error fetching index constituents:", error);
+    return null;
+  }
+}
+
 export interface MarketMover {
   symbol: string;
   price: number;

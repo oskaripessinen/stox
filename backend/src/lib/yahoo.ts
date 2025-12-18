@@ -187,3 +187,41 @@ export async function searchSymbols(query: string): Promise<SearchResult[]> {
     return [];
   }
 }
+
+export interface EtfHolding {
+  symbol: string;
+  name: string;
+  weight?: number; // percentage
+  shares?: number;
+  marketValue?: number;
+}
+
+/**
+ * Get top holdings for an ETF using Yahoo Finance quoteSummary topHoldings module
+ */
+export async function getEtfHoldings(symbol: string): Promise<EtfHolding[]> {
+  try {
+    const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=topHoldings`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      console.error(`Yahoo ETF holdings error: ${res.status}`);
+      return [];
+    }
+
+    const data = await res.json();
+    const result = data?.quoteSummary?.result?.[0];
+    const holdings = result?.topHoldings?.holdings;
+    if (!holdings || !Array.isArray(holdings)) return [];
+
+    return holdings.map((h: any) => ({
+      symbol: (h?.symbol || h?.symbol || "").toUpperCase(),
+      name: h?.name || h?.longName || h?.shortName || h?.symbol || "",
+      weight: typeof h?.weight === 'number' ? h.weight : (typeof h?.holdingPercent === 'number' ? h.holdingPercent * 100 : undefined),
+      shares: typeof h?.shares === 'number' ? h.shares : undefined,
+      marketValue: typeof h?.marketValue === 'number' ? h.marketValue : undefined,
+    }));
+  } catch (error) {
+    console.error(`Error fetching ETF holdings for ${symbol}:`, error);
+    return [];
+  }
+}

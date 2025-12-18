@@ -84,13 +84,15 @@ export function Header({ onStockSelect }: HeaderProps) {
               </Link>
 
             <nav className="hidden lg:flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-foreground/80 hover:text-foreground"
-              >
-                Markets
-              </Button>
+              <Link href="/">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-foreground/80 hover:text-foreground"
+                >
+                  Markets
+                </Button>
+              </Link>
               <Button
                 variant="ghost"
                 size="sm"

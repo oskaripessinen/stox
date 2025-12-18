@@ -3,6 +3,7 @@ import React from "react";
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import IndexConstituents from "./IndexConstituents";
+import { StockProfileDialog } from "@/components/stocks/stock-profile-dialog";
 import { formatPrice, formatPoints, getStockHistory, StockBar } from "@/lib/api";
 import * as Recharts from "recharts";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
@@ -38,6 +39,8 @@ export default function IndexCards({ indices, loading }: { indices: IndexPoint[]
   const [etfBarsMap, setEtfBarsMap] = useState<Record<string, StockBar[]>>({});
   const [selectedIndex, setSelectedIndex] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [stockModalSymbol, setStockModalSymbol] = useState<string | null>(null);
+  const [stockModalOpen, setStockModalOpen] = useState(false);
 
   // Mapping of index symbols to ETF tickers
   const indexToEtf = useMemo<Record<string, string>>(() => ({
@@ -106,16 +109,28 @@ export default function IndexCards({ indices, loading }: { indices: IndexPoint[]
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardDescription>
-                  {index.name}
+                  <button
+                    className="text-left text-base font-medium hover:underline focus:outline-none cursor-pointer"
+                    onClick={() => {
+                      // Prefer explicit ETF symbol if available, fall back to mapping
+                      const etfSym = index.etf?.symbol ?? indexToEtf[index.symbol] ?? null;
+                      if (etfSym) {
+                        setStockModalSymbol(etfSym);
+                        setStockModalOpen(true);
+                      } else {
+                        // Fall back to constituents modal when no ETF mapping exists
+                        setSelectedIndex(index.symbol);
+                        setModalOpen(true);
+                      }
+                    }}
+                    aria-label={`Open ETF profile for ${index.name}`}
+                  >
+                    {index.name}
+                  </button>
                   {index.etf?.symbol ? (
                     <span className="ml-2 text-xs text-muted-foreground">· {index.etf.symbol}</span>
                   ) : null}
                 </CardDescription>
-                <div className="ml-4">
-                  <button className="text-xs text-muted-foreground hover:underline" onClick={() => { setSelectedIndex(index.symbol); setModalOpen(true); }}>
-                    View top constituents
-                  </button>
-                </div>
                 <span
                   className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                     (index.etf?.up ?? index.up) ? "bg-chart-3/20 text-chart-3" : "bg-destructive/20 text-destructive"
@@ -193,6 +208,9 @@ export default function IndexCards({ indices, loading }: { indices: IndexPoint[]
     </div>
     {selectedIndex ? (
       <IndexConstituents indexSymbol={selectedIndex} open={modalOpen} onOpenChange={(v) => { setModalOpen(v); if (!v) setSelectedIndex(null); }} />
+    ) : null}
+    {stockModalSymbol ? (
+      <StockProfileDialog symbol={stockModalSymbol} open={stockModalOpen} onOpenChange={(v) => { setStockModalOpen(v); if (!v) setStockModalSymbol(null); }} />
     ) : null}
     </>
   );

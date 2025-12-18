@@ -76,12 +76,12 @@ export default function StockList({
   onSort: (col: string) => void;
   indices?: string[];
 }) {
-  // Default to S&P 500 on first render
   const [selectedIndexSymbol, setSelectedIndexSymbol] = useState<string | null>("^GSPC");
   const [selectedIndexLabel, setSelectedIndexLabel] = useState<string | null>("S&P 500");
 
   const [constituentsLoading, setConstituentsLoading] = useState(false);
   const [constituents, setConstituents] = useState<StockQuote[] | null>(null);
+  const [constituentsError, setConstituentsError] = useState<string | null>(null);
 
   const INDEX_OPTIONS: { name: string; symbol: string }[] = [
     { name: "S&P 500", symbol: "^GSPC" },
@@ -100,10 +100,17 @@ export default function StockList({
     let cancelled = false;
     async function fetchConstituents() {
       setConstituentsLoading(true);
+      setConstituentsError(null);
       try {
         const res = await getIndexConstituents(selectedIndexSymbol!, 20, 0);
-        if (!res || !res.constituents || res.constituents.length === 0) {
+        if (!res) {
           if (!cancelled) setConstituents([]);
+          if (!cancelled) setConstituentsError("Failed to fetch constituents (network or API error)");
+          return;
+        }
+        if (!res.constituents || res.constituents.length === 0) {
+          if (!cancelled) setConstituents([]);
+          if (!cancelled) setConstituentsError("No constituents returned for this index");
           return;
         }
 
@@ -114,6 +121,7 @@ export default function StockList({
       } catch (e) {
         console.error("Failed to fetch constituents or quotes:", e);
         if (!cancelled) setConstituents([]);
+        if (!cancelled) setConstituentsError(String(e || "Unknown error"));
       } finally {
         if (!cancelled) setConstituentsLoading(false);
       }
@@ -145,7 +153,6 @@ export default function StockList({
                 <DropdownMenuContent align="end">
                   {mockIndices && mockIndices.length > 0 ? (
                     mockIndices.map((idx) => {
-                      // find symbol from known mapping, fallback to name
                       const opt = INDEX_OPTIONS.find((o) => o.name.toLowerCase() === idx.name.toLowerCase());
                       const symbol = opt ? opt.symbol : idx.name;
                       return (
@@ -197,7 +204,14 @@ export default function StockList({
                 </TableRow>
               ) : constituents && constituents.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No constituents available</TableCell>
+                  <TableCell colSpan={4} className="text-center py-8">
+                    <div className="text-muted-foreground">{constituentsError ?? "No constituents available"}</div>
+                    {constituentsError ? (
+                      <div className="mt-2">
+                        <Button variant="ghost" onClick={() => setSelectedIndexSymbol((s) => { setSelectedIndexSymbol(s); return s; })}>Retry</Button>
+                      </div>
+                    ) : null}
+                  </TableCell>
                 </TableRow>
               ) : (
                 (constituents || []).map((stock) => (

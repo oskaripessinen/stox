@@ -6,8 +6,7 @@ import {
   getBars,
   getTopMovers,
 } from "../lib/alpaca";
-import { getAllIndices, searchSymbols } from "../lib/yahoo";
-import { getEtfHoldings } from "../lib/yahoo";
+import { getAllIndices, searchSymbols, getEtfHoldings, EtfHolding } from "../lib/yahoo";
 import { getCompanyProfile } from "../lib/finnhub";
 import { requireAuth } from "../middleware/auth";
 import { deleteCache } from "../lib/cache";
@@ -147,7 +146,15 @@ router.get("/indices", async (req: Request, res: Response) => {
  */
 router.get("/indices/:symbol/constituents", async (req: Request, res: Response) => {
   try {
-    const { symbol } = req.params;
+    const { symbol: rawSymbol } = req.params;
+    // Defensive decoding/normalization: accept encoded symbols (%5EDJI), with or without leading '^', or plain names
+    let symbol = rawSymbol;
+    try {
+      symbol = decodeURIComponent(rawSymbol);
+    } catch (e) {
+      // ignore decode errors and keep raw
+      symbol = rawSymbol;
+    }
     const limit = Math.min(parseInt((req.query.limit as string) || "20", 10), 100);
     const offset = Math.max(parseInt((req.query.offset as string) || "0", 10), 0);
 
@@ -163,24 +170,32 @@ router.get("/indices/:symbol/constituents", async (req: Request, res: Response) 
       '^RUT':  { index: '^RUT',  etf: 'IWM', name: 'Russell 2000' },
     };
 
-    const mapping = indexToEtf[symbol];
+    // Try a few normalized variants (e.g., '^DJI', 'DJI')
+    let mapping = indexToEtf[symbol];
     if (!mapping) {
+      const alt = symbol.startsWith('^') ? symbol.slice(1) : `^${symbol}`;
+      mapping = indexToEtf[alt] || indexToEtf[symbol.toUpperCase()];
+    }
+
+    if (!mapping) {
+      console.warn(`Unknown index symbol requested: '${rawSymbol}' (decoded '${symbol}') - available keys: ${Object.keys(indexToEtf).join(', ')}`);
       res.status(404).json({ error: `Unknown index symbol: ${symbol}` });
       return;
     }
 
     const cacheKey = cacheKeys.holdings(mapping.etf);
-    const cached = await getCache(cacheKey);
-    let holdings = cached;
-    if (!holdings) {
+    const cached = await getCache<EtfHolding[]>(cacheKey);
+    let holdings: EtfHolding[] | null = Array.isArray(cached) ? cached : null;
+
+    if (!holdings || holdings.length === 0) {
       holdings = await getEtfHoldings(mapping.etf);
       // sort by weight desc if weight available
-      holdings.sort((a: any, b: any) => (b.weight ?? 0) - (a.weight ?? 0));
+      holdings.sort((a: EtfHolding, b: EtfHolding) => (b.weight ?? 0) - (a.weight ?? 0));
       await setCache(cacheKey, holdings, TTL.HOLDINGS);
     }
 
-    const sliced = (holdings || []).slice(offset, offset + limit);
-    res.json({ index: symbol, etf: mapping.etf, total: (holdings || []).length, constituents: sliced });
+    const sliced = holdings.slice(offset, offset + limit);
+    res.json({ index: symbol, etf: mapping.etf, total: holdings.length, constituents: sliced });
   } catch (error) {
     console.error("Error fetching index constituents:", error);
     res.status(500).json({ error: "Failed to fetch index constituents" });
@@ -425,8 +440,9 @@ router.get("/:symbol/profile", async (req: Request, res: Response) => {
 
     const profile = await getCompanyProfile(symbol.toUpperCase());
 
+    // If profile is not available (missing API key or not found), return 200 with null
     if (!profile) {
-      res.status(404).json({ error: "Company profile not found" });
+      res.json(null);
       return;
     }
 

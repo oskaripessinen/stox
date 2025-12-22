@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuItem
 } from "@/components/ui/dropdown-menu";
-import { PlusIcon, Star, MoreHorizontal, ChevronDown } from "lucide-react";
+import { PlusIcon, Star, MoreHorizontal, ChevronDown, Loader2 } from "lucide-react";
 import { Stock, StockTable } from "@/components/market/stock-table";
 import { useSearch } from "@/context/search-context";
 import {
@@ -191,12 +191,10 @@ export default function WatchlistPage() {
     }
   };
 
-  // Unified handler for selecting a watchlist — updates state and hydrates prices
   const selectWatchlist = (wl: Watchlist | null) => {
     setWatchlist(wl);
     const rows = mapItemsToStocks(wl?.items);
     setStocks(rows);
-    // fire-and-forget hydrate
     hydrateStockPrices(rows);
   };
 
@@ -234,7 +232,6 @@ export default function WatchlistPage() {
     if (!watchlist) return;
     const updated = await addToWatchlist(watchlist.id, symbol);
     if (updated) {
-      // Update local cache and select the updated list so UI refreshes
       setWatchlists((prev) => ({ ...prev, [updated.id]: updated }));
       selectWatchlist(updated);
     }
@@ -249,9 +246,7 @@ export default function WatchlistPage() {
     if (!watchlist) return;
     const { success } = await removeFromWatchlist(watchlist.id, ticker);
     if (success) {
-      // Update visible rows
       setStocks((prevStocks) => prevStocks.filter((stock) => stock.ticker !== ticker));
-      // Update watchlist state and cache (remove item locally)
       setWatchlist((prev) => prev ? { ...prev, items: (prev.items ?? []).filter(i => i.symbol !== ticker) } as Watchlist : prev);
       setWatchlists((prev) => ({ ...prev, [watchlist.id]: { ...(prev[watchlist.id] ?? watchlist), items: (watchlist.items ?? []).filter(i => i.symbol !== ticker) } }));
     }
@@ -272,7 +267,9 @@ export default function WatchlistPage() {
           <WatchlistTabs />
           <div className="mt-8">
             {loading ? (
-              <div className="text-center">Loading...</div>
+              <div className="text-center">
+                <Loader2 className="mx-auto animate-spin" />
+              </div>
             ) : stocks.length === 0 ? (
               <EmptyState onAddStockClick={openSearch} />
             ) : (

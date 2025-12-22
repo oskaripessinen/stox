@@ -136,6 +136,32 @@ export interface WatchlistItem {
   createdAt: string;
 }
 
+export interface MarketNews {
+  category: string;
+  datetime: number;
+  headline: string;
+  id: number;
+  image: string;
+  related: string;
+  source: string;
+  summary: string;
+  url: string;
+}
+
+/**
+ * Get general market news
+ */
+export async function getMarketNews(category: string = "general"): Promise<MarketNews[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/news?category=${category}`);
+    if (!res.ok) return [];
+    return res.json();
+  } catch (error) {
+    console.error("Error fetching market news:", error);
+    return [];
+  }
+}
+
 
 /**
  * Get company profile from Finnhub

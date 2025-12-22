@@ -80,6 +80,44 @@ export async function getCompanyProfile(symbol: string): Promise<StockProfile | 
   }
 }
 
+export interface MarketNews {
+  category: string;
+  datetime: number;
+  headline: string;
+  id: number;
+  image: string;
+  related: string;
+  source: string;
+  summary: string;
+  url: string;
+}
+
+/**
+ * Get general market news
+ */
+export async function getMarketNews(category: string = "general"): Promise<MarketNews[]> {
+  if (!FINNHUB_API_KEY) {
+    console.warn("FINNHUB_API_KEY not set - market news unavailable");
+    return [];
+  }
+
+  try {
+    const url = `${FINNHUB_BASE_URL}/news?category=${category}&token=${FINNHUB_API_KEY}`;
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      console.error(`Finnhub news API error: ${res.status}`);
+      return [];
+    }
+
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error("Error fetching market news:", error);
+    return [];
+  }
+}
+
 /**
  * Check if Finnhub API is configured
  */

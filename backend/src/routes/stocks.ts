@@ -138,69 +138,6 @@ router.get("/indices", async (req: Request, res: Response) => {
         }
 
         if (bars && bars.length > 0) {
-
-/**
- * GET /api/stocks/indices/:symbol/constituents
- * Get top constituents for an index by mapping to a representative ETF and
- * returning the ETF topHoldings list (paged)
- */
-router.get("/indices/:symbol/constituents", async (req: Request, res: Response) => {
-  try {
-    const { symbol: rawSymbol } = req.params;
-    // Defensive decoding/normalization: accept encoded symbols (%5EDJI), with or without leading '^', or plain names
-    let symbol = rawSymbol;
-    try {
-      symbol = decodeURIComponent(rawSymbol);
-    } catch (e) {
-      // ignore decode errors and keep raw
-      symbol = rawSymbol;
-    }
-    const limit = Math.min(parseInt((req.query.limit as string) || "20", 10), 100);
-    const offset = Math.max(parseInt((req.query.offset as string) || "0", 10), 0);
-
-    if (!symbol) {
-      res.status(400).json({ error: "Index symbol is required" });
-      return;
-    }
-
-    const indexToEtf: Record<string, { index: string; etf: string; name: string }> = {
-      '^GSPC': { index: '^GSPC', etf: 'SPY', name: 'S&P 500' },
-      '^IXIC': { index: '^IXIC', etf: 'QQQ', name: 'NASDAQ' },
-      '^DJI':  { index: '^DJI',  etf: 'DIA', name: 'Dow Jones' },
-      '^RUT':  { index: '^RUT',  etf: 'IWM', name: 'Russell 2000' },
-    };
-
-    // Try a few normalized variants (e.g., '^DJI', 'DJI')
-    let mapping = indexToEtf[symbol];
-    if (!mapping) {
-      const alt = symbol.startsWith('^') ? symbol.slice(1) : `^${symbol}`;
-      mapping = indexToEtf[alt] || indexToEtf[symbol.toUpperCase()];
-    }
-
-    if (!mapping) {
-      console.warn(`Unknown index symbol requested: '${rawSymbol}' (decoded '${symbol}') - available keys: ${Object.keys(indexToEtf).join(', ')}`);
-      res.status(404).json({ error: `Unknown index symbol: ${symbol}` });
-      return;
-    }
-
-    const cacheKey = cacheKeys.holdings(mapping.etf);
-    const cached = await getCache<EtfHolding[]>(cacheKey);
-    let holdings: EtfHolding[] | null = Array.isArray(cached) ? cached : null;
-
-    if (!holdings || holdings.length === 0) {
-      holdings = await getEtfHoldings(mapping.etf);
-      // sort by weight desc if weight available
-      holdings.sort((a: EtfHolding, b: EtfHolding) => (b.weight ?? 0) - (a.weight ?? 0));
-      await setCache(cacheKey, holdings, TTL.HOLDINGS);
-    }
-
-    const sliced = holdings.slice(offset, offset + limit);
-    res.json({ index: symbol, etf: mapping.etf, total: holdings.length, constituents: sliced });
-  } catch (error) {
-    console.error("Error fetching index constituents:", error);
-    res.status(500).json({ error: "Failed to fetch index constituents" });
-  }
-});
           console.log(`Fetched ${bars.length} bars for ${symbol} at ${c.tf}`);
           await setCache(cacheKeyBars, {
             symbol: symbol.toUpperCase(),
@@ -241,7 +178,6 @@ router.get("/indices/:symbol/constituents", async (req: Request, res: Response) 
         id: quote.symbol,
         name: etfInfo.name,
         symbol: quote.symbol,
-        // Keep index metadata but expose ETF quote too; frontend will prefer ETF price for display
         value: quote.price, 
         change: quote.change ?? null,
         changePercent: quote.changePercent ?? null,
@@ -263,6 +199,65 @@ router.get("/indices/:symbol/constituents", async (req: Request, res: Response) 
   } catch (error) {
     console.error("Error fetching indices:", error);
     res.status(500).json({ error: "Failed to fetch indices" });
+  }
+});
+
+/**
+ * GET /api/stocks/indices/:symbol/constituents
+ * Get top constituents for an index by mapping to a representative ETF and
+ * returning the ETF topHoldings list (paged)
+ */
+router.get("/indices/:symbol/constituents", async (req: Request, res: Response) => {
+  try {
+    const { symbol: rawSymbol } = req.params;
+    let symbol = rawSymbol;
+    try {
+      symbol = decodeURIComponent(rawSymbol);
+    } catch (e) {
+      symbol = rawSymbol;
+    }
+    const limit = Math.min(parseInt((req.query.limit as string) || "20", 10), 100);
+    const offset = Math.max(parseInt((req.query.offset as string) || "0", 10), 0);
+
+    if (!symbol) {
+      res.status(400).json({ error: "Index symbol is required" });
+      return;
+    }
+
+    const indexToEtf: Record<string, { index: string; etf: string; name: string }> = {
+      '^GSPC': { index: '^GSPC', etf: 'SPY', name: 'S&P 500' },
+      '^IXIC': { index: '^IXIC', etf: 'QQQ', name: 'NASDAQ' },
+      '^DJI':  { index: '^DJI',  etf: 'DIA', name: 'Dow Jones' },
+      '^RUT':  { index: '^RUT',  etf: 'IWM', name: 'Russell 2000' },
+    };
+
+    let mapping = indexToEtf[symbol];
+    if (!mapping) {
+      const alt = symbol.startsWith('^') ? symbol.slice(1) : `^${symbol}`;
+      mapping = indexToEtf[alt] || indexToEtf[symbol.toUpperCase()];
+    }
+
+    if (!mapping) {
+      console.warn(`Unknown index symbol requested: '${rawSymbol}' (decoded '${symbol}') - available keys: ${Object.keys(indexToEtf).join(', ')}`);
+      res.status(404).json({ error: `Unknown index symbol: ${symbol}` });
+      return;
+    }
+
+    const cacheKey = cacheKeys.holdings(mapping.etf);
+    const cached = await getCache<EtfHolding[]>(cacheKey);
+    let holdings: EtfHolding[] | null = Array.isArray(cached) ? cached : null;
+
+    if (!holdings || holdings.length === 0) {
+      holdings = await getEtfHoldings(mapping.etf);
+      holdings.sort((a: EtfHolding, b: EtfHolding) => (b.weight ?? 0) - (a.weight ?? 0));
+      await setCache(cacheKey, holdings, TTL.HOLDINGS);
+    }
+
+    const sliced = holdings.slice(offset, offset + limit);
+    res.json({ index: symbol, etf: mapping.etf, total: holdings.length, constituents: sliced });
+  } catch (error) {
+    console.error("Error fetching index constituents:", error);
+    res.status(500).json({ error: "Failed to fetch index constituents" });
   }
 });
 

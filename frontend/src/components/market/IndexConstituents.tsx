@@ -55,7 +55,6 @@ export default function IndexConstituents({ indexSymbol, open, onOpenChange }: {
                   <th className="pb-2">#</th>
                   <th className="pb-2">Symbol</th>
                   <th className="pb-2">Name</th>
-                  <th className="pb-2">Weight</th>
                 </tr>
               </thead>
               <tbody>
@@ -64,7 +63,6 @@ export default function IndexConstituents({ indexSymbol, open, onOpenChange }: {
                     <td className="py-2">{offset + i + 1}</td>
                     <td className="py-2 font-mono">{h.symbol}</td>
                     <td className="py-2">{h.name}</td>
-                    <td className="py-2">{h.weight ? `${h.weight.toFixed(2)}%` : "-"}</td>
                   </tr>
                 ))}
               </tbody>

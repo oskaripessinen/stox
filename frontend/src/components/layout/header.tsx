@@ -25,7 +25,6 @@ export function Header({ onStockSelect }: HeaderProps) {
   const [searchLoading, setSearchLoading] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // `darkMode` initial state is derived directly; no effect needed on mount
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -40,7 +39,6 @@ export function Header({ onStockSelect }: HeaderProps) {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [openSearch]);
 
-  // Debounced search
   useEffect(() => {
     if (!searchQuery || searchQuery.length < 1) return;
 
@@ -86,36 +84,31 @@ export function Header({ onStockSelect }: HeaderProps) {
             <nav className="hidden lg:flex items-center gap-1">
               <Link href="/">
                 <Button
-                  variant="ghost"
+                  variant="link"
                   size="sm"
-                  className="text-foreground/80 hover:text-foreground"
+                  className="text-foreground/80 hover:text-foreground cursor-pointer hover:text-primary"
                 >
                   Markets
                 </Button>
               </Link>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-foreground/80 hover:text-foreground"
-              >
-                Stocks
-              </Button>
               <Link href="/watchlist">
                 <Button
-                  variant="ghost"
+                  variant="link"
                   size="sm"
-                  className="text-foreground/80 hover:text-foreground"
+                  className="cursor-pointer text-foreground/80 hover:text-primary"
                 >
                   Watchlist
                 </Button>
               </Link>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-foreground/80 hover:text-foreground"
-              >
-                News
-              </Button>
+              <Link href="/news">
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="text-foreground/80 hover:text-foreground cursor-pointer hover:text-primary"
+                >
+                  News
+                </Button>
+              </Link>
             </nav>
           </div>
 
@@ -148,7 +141,6 @@ export function Header({ onStockSelect }: HeaderProps) {
               <Search className="h-5 w-5" />
             </Button>
 
-            {/* Dark mode toggle */}
             <Button
               variant="outline"
               size="icon"
@@ -162,7 +154,6 @@ export function Header({ onStockSelect }: HeaderProps) {
               )}
             </Button>
 
-            {/* Auth */}
             <SignedOut>
               <SignInModal>
                 <Button>Sign In</Button>
@@ -175,7 +166,6 @@ export function Header({ onStockSelect }: HeaderProps) {
         </div>
       </header>
 
-      {/* Search Overlay */}
       {isSearchOpen && (
         <div
           className="fixed inset-0 z-[100]"

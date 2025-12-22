@@ -136,13 +136,11 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
   const domainPadding = domainRange > 0 ? Math.max(domainRange * 0.15, Math.abs(domainMax) * 0.01) : Math.max(Math.abs(domainMax) * 0.01, 1);
   const yDomain: [number, number] = [domainMin - domainPadding, domainMax + domainPadding];
 
-  // We previously generated chartPath manually, but now use Recharts. Keep `bars` as source of truth.
 
-  // Hover interactions handled by Recharts tooltip/activeDot
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[1000px] h-[750px] overflow-y-auto">
+      <DialogContent className="sm:max-w-[1000px] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
                 {profile?.logo && (
@@ -174,7 +172,6 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
 
         {loading ? (
           <div className="space-y-6">
-            {/* Price Section skeleton */}
             <div className="flex items-baseline justify-between">
               <div className="h-10 w-40 bg-muted animate-pulse rounded" />
               <div className="text-right space-y-1">
@@ -183,7 +180,6 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
               </div>
             </div>
 
-            {/* Chart Section skeleton */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex gap-1">
@@ -199,7 +195,6 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
               </div>
             </div>
 
-            {/* Stats Grid skeleton */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[...Array(4)].map((_, i) => (
                 <div key={i} className="bg-muted/50 rounded-lg p-3 space-y-2">
@@ -209,7 +204,6 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
               ))}
             </div>
 
-            {/* Company Info skeleton */}
             <div className="space-y-3 border-t pt-4">
               <div className="h-4 w-28 bg-muted animate-pulse rounded" />
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -229,12 +223,9 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
         ) : (
           <div className="space-y-6">
 
-            {/* Chart Section */}
             <div className="space-y-3">
-              {/* Timeframe selector - slide menu */}
               <div className="flex items-center justify-between">
                 <div className="relative inline-flex bg-muted rounded-md p-0.5 gap-0.5">
-                  {/* Sliding background */}
                   <div
                     className="absolute top-0.5 bottom-0.5 bg-background rounded shadow-sm transition-all duration-200 ease-out pointer-events-none"
                     style={{
@@ -286,9 +277,7 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
               </div>
               </div>
 
-              {/* Chart */}
               <div className="flex gap-2">
-                {/* Chart area */}
                 <div 
                   ref={chartRef}
                     className="relative h-64 flex-1 rounded-lg overflow-hidden"
@@ -337,11 +326,9 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
                 
                 </div>
                 
-                {/* Price labels removed (use tooltip or Y axis) */}
               </div>
             </div>
 
-            {/* Stats Grid */}
             {quote && (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="bg-muted/50 rounded-lg p-3">
@@ -363,7 +350,6 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
               </div>
             )}
 
-            {/* Company Info */}
             {profile && (
               <div className="space-y-3 border-t pt-4">
                 <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">

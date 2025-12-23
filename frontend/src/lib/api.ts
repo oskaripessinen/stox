@@ -162,6 +162,20 @@ export async function getMarketNews(category: string = "general"): Promise<Marke
   }
 }
 
+/**
+ * Get company specific news
+ */
+export async function getCompanyNews(symbol: string): Promise<MarketNews[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/news/${symbol}`);
+    if (!res.ok) return [];
+    return res.json();
+  } catch (error) {
+    console.error(`Error fetching news for ${symbol}:`, error);
+    return [];
+  }
+}
+
 
 /**
  * Get company profile from Finnhub

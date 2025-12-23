@@ -119,6 +119,32 @@ export async function getMarketNews(category: string = "general"): Promise<Marke
 }
 
 /**
+ * Get company specific news
+ */
+export async function getCompanyNews(symbol: string, from: string, to: string): Promise<MarketNews[]> {
+  if (!FINNHUB_API_KEY) {
+    console.warn("FINNHUB_API_KEY not set - company news unavailable");
+    return [];
+  }
+
+  try {
+    const url = `${FINNHUB_BASE_URL}/company-news?symbol=${encodeURIComponent(symbol)}&from=${from}&to=${to}&token=${FINNHUB_API_KEY}`;
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      console.error(`Finnhub company news API error: ${res.status}`);
+      return [];
+    }
+
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error(`Error fetching news for ${symbol}:`, error);
+    return [];
+  }
+}
+
+/**
  * Check if Finnhub API is configured
  */
 export function isFinnhubConfigured(): boolean {

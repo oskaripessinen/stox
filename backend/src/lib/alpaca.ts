@@ -37,6 +37,27 @@ interface AlpacaBar {
   vw: number;
 }
 
+export interface AlpacaClock {
+  timestamp: string;
+  is_open: boolean;
+  next_open: string;
+  next_close: string;
+}
+
+/**
+ * Get the market clock
+ */
+export async function getClock(): Promise<AlpacaClock | null> {
+  try {
+    const res = await fetch("https://api.alpaca.markets/v2/clock", { headers });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (error) {
+    console.error("Error fetching market clock:", error);
+    return null;
+  }
+}
+
 /**
  * Get the latest trade price for a stock
  */

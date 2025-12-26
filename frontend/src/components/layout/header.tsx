@@ -81,7 +81,7 @@ export function Header({ onStockSelect }: HeaderProps) {
                 <span className="text-2xl font-bold font-orbitron">Stox</span>
               </Link>
 
-            <nav className="hidden lg:flex items-center gap-1">
+            <nav className="hidden lg:flex items-center gap-1 mt-1.5">
               <Link href="/">
                 <Button
                   variant="link"

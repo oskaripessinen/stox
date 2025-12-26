@@ -5,6 +5,7 @@ import {
   getLatestTrade,
   getBars,
   getTopMovers,
+  getClock,
 } from "../lib/alpaca";
 import { getAllIndices, searchSymbols, getEtfHoldings, EtfHolding } from "../lib/yahoo";
 import { getCompanyProfile } from "../lib/finnhub";
@@ -13,6 +14,20 @@ import { deleteCache } from "../lib/cache";
 import { getCache, setCache, cacheKeys, TTL } from "../lib/cache";
 
 const router = Router();
+
+/**
+ * GET /api/stocks/market-status
+ * Get current market status (open/closed)
+ */
+router.get("/market-status", async (req: Request, res: Response) => {
+  try {
+    const clock = await getClock();
+    res.json(clock);
+  } catch (error) {
+    console.error("Error fetching market status:", error);
+    res.status(500).json({ error: "Failed to fetch market status" });
+  }
+});
 
 /**
  * GET /api/stocks/search

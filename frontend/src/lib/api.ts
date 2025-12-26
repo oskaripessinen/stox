@@ -68,6 +68,27 @@ export interface EtfHolding {
   marketValue?: number;
 }
 
+export interface MarketClock {
+  timestamp: string;
+  is_open: boolean;
+  next_open: string;
+  next_close: string;
+}
+
+/**
+ * Get current market status
+ */
+export async function getMarketStatus(): Promise<MarketClock | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/stocks/market-status`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch (error) {
+    console.error("Error fetching market status:", error);
+    return null;
+  }
+}
+
 /**
  * Get top constituents for an index (paged)
  */

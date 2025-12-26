@@ -7,6 +7,7 @@ import { StockProfileDialog } from "@/components/stocks/stock-profile-dialog";
 import IndexCards from "@/components/market/IndexCards";
 import Movers from "@/components/market/Movers";
 import StockList from "@/components/market/StockList";
+import { MarketStatusBadge } from "@/components/market/market-status";
 import { getMultipleQuotes, getIndices, getTopMovers, getStockProfile, StockQuote, IndexData, MarketMover } from "@/lib/api";
 
 const indexSymbols: Record<string, string[]> = {
@@ -145,9 +146,12 @@ export default function Home() {
 
       <main className="pt-20 pb-8 px-4 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-foreground">Market Overview</h1>
-            <p className="text-sm text-muted-foreground">Real-time market data and trends</p>
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Market Overview</h1>
+              <p className="text-sm text-muted-foreground">Real-time market data and trends</p>
+            </div>
+            <MarketStatusBadge />
           </div>
 
           <IndexCards indices={indices} loading={indicesLoading} />

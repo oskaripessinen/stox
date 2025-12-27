@@ -7,14 +7,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, ExternalLink, Globe, Building2, MapPin, Calendar, TrendingUp, DollarSign, Newspaper, ChevronLeft, ChevronRight } from "lucide-react";
-import { getStockDetails, StockProfile, StockQuote, StockBar, formatPrice, formatMarketCap, formatVolume, MarketNews, getCompanyNews } from "@/lib/api";
+import { Loader2, ExternalLink, Globe, Building2, MapPin, Calendar, TrendingUp, DollarSign, Newspaper, ChevronLeft, ChevronRight, Plus, Check, Star } from "lucide-react";
+import { getStockDetails, StockProfile, StockQuote, StockBar, formatPrice, formatMarketCap, formatVolume, MarketNews, getCompanyNews, getWatchlists, addToWatchlist, Watchlist, removeFromWatchlist } from "@/lib/api";
 import Image from "next/image";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import * as Recharts from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { SignedIn, SignedOut } from "@clerk/clerk-react";
+import { SignInModal } from "@/components/auth/sign-in-modal";
 
 interface StockProfileDialogProps {
   symbol: string | null;
@@ -53,6 +63,31 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
   
   const [logoLoaded, setLogoLoaded] = useState(false);
   const chartRef = useRef<HTMLDivElement>(null);
+
+  const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
+  const [watchlistLoading, setWatchlistLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      getWatchlists().then(setWatchlists);
+    }
+  }, [open]);
+
+  const handleToggleWatchlist = async (watchlistId: string, currentItems: { symbol: string }[]) => {
+    if (!symbol) return;
+    
+    const isinList = currentItems.some(i => i.symbol === symbol);
+    
+    if (isinList) {
+      await removeFromWatchlist(watchlistId, symbol);
+    } else {
+      await addToWatchlist(watchlistId, symbol);
+    }
+    
+    // Refresh watchlists
+    const updated = await getWatchlists();
+    setWatchlists(updated);
+  };
 
 
   useEffect(() => {
@@ -184,12 +219,51 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
                       />
                     </div>
                   )}
-              <div className="flex w-full flex-row">
+              <div className="flex w-full flex-row justify-between items-start">
                 <div>
-                  <span className="text-2xl">{symbol}</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-2xl font-semibold">{symbol}</span>
+                    <SignedIn>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="link" size="icon" className="group h-8 w-8 text-primary transition-all">
+                            <Star className={`h-7 w-7 text-primary fill-none group-hover:fill-primary transition-all duration-200`} />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          {watchlists.length === 0 ? (
+                            <div className="p-2 text-xs text-muted-foreground">No watchlists created</div>
+                          ) : (
+                            watchlists.map((wl) => {
+                              const isInList = wl.items.some((i) => i.symbol === symbol);
+                              return (
+                                <DropdownMenuItem 
+                                  key={wl.id} 
+                                  onClick={() => handleToggleWatchlist(wl.id, wl.items)}
+                                  className="flex items-center justify-between gap-2"
+                                >
+                                  <span>{wl.name}</span>
+                                  {isInList && <Check className="h-3 w-3" />}
+                                </DropdownMenuItem>
+                              );
+                            })
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </SignedIn>
+                  </div>
                   {profile?.name && (
                     <p className="text-sm font-normal text-muted-foreground">{profile.name}</p>
                   )}
+                </div>
+                <div className="flex items-center gap-2">
+                   <SignedOut>
+                     <SignInModal>
+                       <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                         <Star className="h-5 w-5" />
+                       </Button>
+                     </SignInModal>
+                   </SignedOut>
                 </div>
               </div>
             </DialogTitle>

@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Loader2, ExternalLink, Globe, Building2, MapPin, Calendar, TrendingUp, DollarSign, Newspaper, ChevronLeft, ChevronRight, Plus, Check, Star } from "lucide-react";
-import { getStockDetails, StockProfile, StockQuote, StockBar, formatPrice, formatMarketCap, formatVolume, MarketNews, getCompanyNews, getWatchlists, addToWatchlist, Watchlist, removeFromWatchlist } from "@/lib/api";
+import { getStockDetails, StockProfile, StockQuote, StockBar, formatPrice, formatMarketCap, formatVolume, MarketNews, getCompanyNews, getWatchlists, addToWatchlist, Watchlist, removeFromWatchlist, createWatchlist } from "@/lib/api";
 import Image from "next/image";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import * as Recharts from "recharts";
@@ -25,6 +25,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SignedIn, SignedOut } from "@clerk/clerk-react";
 import { SignInModal } from "@/components/auth/sign-in-modal";
+import { toast } from "sonner";
+import { CreateWatchlistDialog } from "@/components/market/create-watchlist-dialog";
 
 interface StockProfileDialogProps {
   symbol: string | null;
@@ -66,6 +68,7 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
 
   const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
+  const [createWatchlistOpen, setCreateWatchlistOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -73,15 +76,36 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
     }
   }, [open]);
 
-  const handleToggleWatchlist = async (watchlistId: string, currentItems: { symbol: string }[]) => {
+  const handleCreateWatchlist = async (name: string, description?: string) => {
+    const newWatchlist = await createWatchlist(name, description);
+    if (newWatchlist) {
+      toast.success(`Created watchlist "${name}"`);
+      const updated = await getWatchlists();
+      setWatchlists(updated);
+      
+      // Optionally add the current stock to the new watchlist immediately
+      if (symbol) {
+        await addToWatchlist(newWatchlist.id, symbol);
+        toast.success(`Added ${symbol} to ${name}`);
+        // Refresh again to show the checkmark
+        getWatchlists().then(setWatchlists);
+      }
+    } else {
+      toast.error("Failed to create watchlist");
+    }
+  };
+
+  const handleToggleWatchlist = async (watchlistId: string, watchlistName: string, currentItems: { symbol: string }[]) => {
     if (!symbol) return;
     
     const isinList = currentItems.some(i => i.symbol === symbol);
     
     if (isinList) {
       await removeFromWatchlist(watchlistId, symbol);
+      toast.success(`Removed ${symbol} from ${watchlistName}`);
     } else {
       await addToWatchlist(watchlistId, symbol);
+      toast.success(`Added ${symbol} to ${watchlistName}`);
     }
     
     // Refresh watchlists
@@ -227,10 +251,19 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="link" size="icon" className="group h-8 w-8 text-primary transition-all">
-                            <Star className={`h-7 w-7 text-primary fill-none group-hover:fill-primary transition-all duration-200`} />
+                            <Star className={`h-7 w-7 text-primary transition-all duration-200 ${watchlists.some(w => w.items.some(i => i.symbol === symbol)) ? "fill-primary" : "fill-none group-hover:fill-primary"}`} />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start">
+                          <DropdownMenuLabel>Add to Watchlist</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onSelect={() => setCreateWatchlistOpen(true)}>
+                            <div className="flex items-center gap-2">
+                              <Plus className="h-4 w-4" />
+                              <span>Create New Watchlist</span>
+                            </div>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           {watchlists.length === 0 ? (
                             <div className="p-2 text-xs text-muted-foreground">No watchlists created</div>
                           ) : (
@@ -239,7 +272,7 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
                               return (
                                 <DropdownMenuItem 
                                   key={wl.id} 
-                                  onClick={() => handleToggleWatchlist(wl.id, wl.items)}
+                                  onClick={() => handleToggleWatchlist(wl.id, wl.name, wl.items)}
                                   className="flex items-center justify-between gap-2"
                                 >
                                   <span>{wl.name}</span>
@@ -592,6 +625,12 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
           </TabsContent>
         </Tabs>
       </DialogContent>
+
+      <CreateWatchlistDialog 
+        open={createWatchlistOpen} 
+        onOpenChange={setCreateWatchlistOpen}
+        onCreate={handleCreateWatchlist}
+      />
     </Dialog>
   );
 }

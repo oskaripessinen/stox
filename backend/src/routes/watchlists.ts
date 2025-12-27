@@ -38,7 +38,7 @@ router.get('/', async (req, res) => {
 // POST /watchlists - Create a new watchlist
 router.post('/', async (req, res) => {
     const { userId: clerkId, isAuthenticated } = getAuth(req);
-    const { name } = req.body;
+    const { name, description } = req.body;
 
     if (!isAuthenticated || !clerkId) {
         return res.status(401).json({ error: 'User not authenticated' });
@@ -61,6 +61,7 @@ router.post('/', async (req, res) => {
             data: {
                 userId: user.id,
                 name,
+                description,
             },
         });
 

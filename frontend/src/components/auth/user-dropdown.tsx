@@ -10,9 +10,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { User, Settings, LogOut } from "lucide-react";
+import { User, Settings, LogOut, Bookmark } from "lucide-react";
 import { ProfileDialog } from "./profile-dialog";
 
 export function UserDropdown() {
@@ -51,12 +52,20 @@ export function UserDropdown() {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setProfileOpen(true)}>
-            <User className="mr-2 h-4 w-4" />
+            <User className="h-4 w-4" />
             Profile
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setProfileOpen(true)}>
-            <Settings className="mr-2 h-4 w-4" />
+            <Settings className="h-4 w-4" />
             Settings
+          </DropdownMenuItem>
+          <DropdownMenuItem>
+            <Link href="/watchlist">
+              <div className="flex flex-row">
+                <Bookmark className="mr-2 h-4 w-4" />
+                Watchlist
+              </div>
+            </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem

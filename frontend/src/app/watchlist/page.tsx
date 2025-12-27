@@ -24,6 +24,8 @@ import {
   Watchlist,
   WatchlistItem,
 } from "@/lib/api";
+import { toast } from "sonner";
+import { CreateWatchlistDialog } from "@/components/market/create-watchlist-dialog";
 
 
 
@@ -32,6 +34,7 @@ import {
 
 type WatchlistHeaderProps = {
   onNewStockClick: () => void;
+  onCreateWatchlist: () => void;
   watchlists: Record<string, Watchlist>;
   setWatchlist: (watchlist: Watchlist | null) => void;
   watchlist: Watchlist | null;
@@ -52,7 +55,7 @@ const allColumns: Record<string, { name: string; visible: boolean }> = {
   
 };
 
-function WatchlistHeader({ onNewStockClick, watchlists, setWatchlist, watchlist }: WatchlistHeaderProps) {
+function WatchlistHeader({ onNewStockClick, onCreateWatchlist, watchlists, setWatchlist, watchlist }: WatchlistHeaderProps) {
 
 
 
@@ -76,7 +79,7 @@ function WatchlistHeader({ onNewStockClick, watchlists, setWatchlist, watchlist 
             </DropdownMenuCheckboxItem>
           ))}
           <DropdownMenuSeparator />
-          <DropdownMenuItem>
+          <DropdownMenuItem onClick={onCreateWatchlist}>
             <PlusIcon className="size-4" color="white"/>Create New Watchlist
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -150,6 +153,7 @@ export default function WatchlistPage() {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [loading, setLoading] = useState(true);
   const [visibleColumns, setVisibleColumns] = useState(allColumns);
+  const [createWatchlistOpen, setCreateWatchlistOpen] = useState(false);
   const { openSearch } = useSearch();
 
   const mapItemsToStocks = (items?: WatchlistItem[]) =>
@@ -226,7 +230,19 @@ export default function WatchlistPage() {
     fetchWatchlist();
   }, []);
 
-
+  const handleCreateWatchlist = async (name: string) => {
+    try {
+      const created = await createWatchlist(name);
+      if (created) {
+        setWatchlists((prev) => ({ ...prev, [created.id]: created }));
+        selectWatchlist(created);
+        toast.success(`Created watchlist "${name}"`);
+      }
+    } catch (err) {
+      console.error("Failed to create watchlist:", err);
+      toast.error("Failed to create watchlist");
+    }
+  };
 
   const handleSearchSelect = async (symbol: string) => {
     if (!watchlist) return;
@@ -234,6 +250,9 @@ export default function WatchlistPage() {
     if (updated) {
       setWatchlists((prev) => ({ ...prev, [updated.id]: updated }));
       selectWatchlist(updated);
+      toast.success(`Added ${symbol} to ${watchlist.name}`);
+    } else {
+      toast.error(`Failed to add ${symbol} to watchlist`);
     }
   };
 
@@ -249,6 +268,9 @@ export default function WatchlistPage() {
       setStocks((prevStocks) => prevStocks.filter((stock) => stock.ticker !== ticker));
       setWatchlist((prev) => prev ? { ...prev, items: (prev.items ?? []).filter(i => i.symbol !== ticker) } as Watchlist : prev);
       setWatchlists((prev) => ({ ...prev, [watchlist.id]: { ...(prev[watchlist.id] ?? watchlist), items: (watchlist.items ?? []).filter(i => i.symbol !== ticker) } }));
+      toast.success(`Removed ${ticker} from ${watchlist.name}`);
+    } else {
+      toast.error(`Failed to remove ${ticker} from watchlist`);
     }
   };
 
@@ -260,6 +282,7 @@ export default function WatchlistPage() {
         <div className="mx-auto max-w-7xl">
           <WatchlistHeader
             onNewStockClick={openSearch}
+            onCreateWatchlist={() => setCreateWatchlistOpen(true)}
             watchlists={watchlists}
             setWatchlist={selectWatchlist}
             watchlist={watchlist}
@@ -288,6 +311,12 @@ export default function WatchlistPage() {
           symbol={selectedStock}
           open={profileDialogOpen}
           onOpenChange={setProfileDialogOpen}
+        />
+
+        <CreateWatchlistDialog
+          open={createWatchlistOpen}
+          onOpenChange={setCreateWatchlistOpen}
+          onCreate={handleCreateWatchlist}
         />
       </main>
     </div>

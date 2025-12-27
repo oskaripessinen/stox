@@ -28,6 +28,7 @@ model User {
 model Watchlist {
   id        String   @id @default(cuid())
   name      String
+  description String?
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   items     WatchlistItem[]

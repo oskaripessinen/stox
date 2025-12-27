@@ -142,6 +142,7 @@ export interface StockProfile {
 export interface Watchlist {
   id: string;
   name: string;
+  description?: string;
   userId: string;
   createdAt: string;
   updatedAt: string;
@@ -246,13 +247,13 @@ export async function getWatchlists(): Promise<Watchlist[]> {
 /**
  * Create a new watchlist
  */
-export async function createWatchlist(name: string): Promise<Watchlist | null> {
+export async function createWatchlist(name: string, description?: string): Promise<Watchlist | null> {
     try {
     const res = await fetch(`${API_BASE_URL}/api/watchlists`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: 'include',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, description }),
     });
         if (!res.ok) return null;
         return res.json();

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@/components/providers/clerk-provider";
 import { AuthSync } from "@/components/auth/auth-sync";
 import { SearchProvider } from "@/context/search-context";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -34,6 +35,7 @@ export default function RootLayout({
           <ClerkProvider>
             <AuthSync />
             {children}
+            <Toaster position="bottom-right" />
           </ClerkProvider>
         </SearchProvider>
       </body>

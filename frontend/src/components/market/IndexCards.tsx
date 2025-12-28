@@ -7,6 +7,7 @@ import { StockProfileDialog } from "@/components/stocks/stock-profile-dialog";
 import { formatPrice, formatPoints, getStockHistory, StockBar } from "@/lib/api";
 import * as Recharts from "recharts";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
+import { ChevronUp, ChevronDown } from "lucide-react";
 
 type IndexPoint = {
   id: string;
@@ -131,17 +132,18 @@ export default function IndexCards({ indices, loading }: { indices: IndexPoint[]
                     <span className="ml-2 text-xs text-muted-foreground">· {index.etf.symbol}</span>
                   ) : null}
                 </CardDescription>
-                <span
-                  className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                <div
+                  className={`flex items-center gap-0.5 text-xs font-semibold px-2 py-0.5 rounded-full ${
                     (index.etf?.up ?? index.up) ? "bg-chart-3/20 text-chart-3" : "bg-destructive/20 text-destructive"
                   }`}
                 >
+                  {(index.etf?.up ?? index.up) ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                   {index.etf?.changePercent !== null && index.etf?.changePercent !== undefined
-                    ? `${(index.etf.changePercent as number).toFixed(2)}%`
+                    ? `${Math.abs(index.etf.changePercent as number).toFixed(2)}%`
                     : index.changePercent !== null && index.changePercent !== undefined
-                    ? `${index.changePercent.toFixed(2)}%`
+                    ? `${Math.abs(index.changePercent).toFixed(2)}%`
                     : "-"}
-                </span>
+                </div>
               </div>
               <CardTitle className="text-xl">
                 {index.etf?.price !== null && index.etf?.price !== undefined

@@ -20,7 +20,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { X } from "lucide-react";
+import { X, ChevronUp, ChevronDown } from "lucide-react";
 import { formatMarketCap, formatVolume } from "@/lib/api";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 
@@ -137,8 +137,9 @@ export function StockTable({ stocks = [], onStockClick, onRemoveStock, columns, 
                 {columns.dailyChange.visible && (
                   <TableCell onClick={() => onStockClick(stock.ticker)}>
                     {typeof stock.dailyChange === "number" ? (
-                      <span className={stock.dailyChange >= 0 ? "text-green-600" : "text-red-600"}>
-                        {stock.dailyChange.toFixed(1)}%
+                      <span className={`flex items-center gap-1 ${stock.dailyChange >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {stock.dailyChange >= 0 ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        {Math.abs(stock.dailyChange).toFixed(1)}%
                       </span>
                     ) : (
                       "N/A"
@@ -146,13 +147,15 @@ export function StockTable({ stocks = [], onStockClick, onRemoveStock, columns, 
                   </TableCell>
                 )}
                 {columns.weeklyChange.visible && <TableCell onClick={() => onStockClick(stock.ticker)}>
-                  <span className={stock.weeklyChange >= 0 ? "text-green-600" : "text-red-600"}>
-                    {stock.weeklyChange.toFixed(1)}%
+                  <span className={`flex items-center gap-1 ${stock.weeklyChange >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    {stock.weeklyChange >= 0 ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    {Math.abs(stock.weeklyChange).toFixed(1)}%
                   </span>
                 </TableCell>}
                 {columns.monthlyChange.visible && <TableCell onClick={() => onStockClick(stock.ticker)}>
-                  <span className={stock.monthlyChange >= 0 ? "text-green-600" : "text-red-600"}>
-                    {stock.monthlyChange.toFixed(1)}%
+                  <span className={`flex items-center gap-1 ${stock.monthlyChange >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    {stock.monthlyChange >= 0 ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    {Math.abs(stock.monthlyChange).toFixed(1)}%
                   </span>
                 </TableCell>}
                 {columns.marketCap.visible && <TableCell onClick={() => onStockClick(stock.ticker)}>{typeof stock.marketCap === 'number' ? formatMarketCap(stock.marketCap) : 'N/A'}</TableCell>}

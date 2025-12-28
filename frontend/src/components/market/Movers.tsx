@@ -60,7 +60,12 @@ function MoverTable({ movers, onSelect, type }: { movers: MarketMover[], onSelec
           <TableRow key={stock.symbol} onClick={() => onSelect(stock.symbol)} className="cursor-pointer">
             <TableCell className="font-semibold">{stock.symbol}</TableCell>
             <TableCell className="text-right font-medium">{formatPrice(stock.price)}</TableCell>
-            <TableCell className={`text-right font-medium ${changeColor}`}>{formatChange(stock.percent_change)}</TableCell>
+            <TableCell className={`text-right font-medium ${changeColor}`}>
+              <div className="flex items-center justify-end gap-1">
+                {stock.percent_change >= 0 ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                {formatChange(stock.percent_change)}
+              </div>
+            </TableCell>
             <TableCell className="text-right text-muted-foreground">{formatVolume(stock.volume)}</TableCell>
           </TableRow>
         ))}

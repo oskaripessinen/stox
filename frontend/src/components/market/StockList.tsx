@@ -12,7 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
+import { ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, Loader2, ChevronUp } from "lucide-react";
 import { formatPrice, formatVolume, formatChange, getIndexConstituents, getMultipleQuotes } from "@/lib/api";
 import { indices as mockIndices } from "@/lib/mock-data";
 
@@ -223,7 +223,10 @@ export default function StockList({
                     <TableCell className="font-semibold">{stock.symbol}</TableCell>
                     <TableCell className="text-right font-medium">{formatPrice(stock.price)}</TableCell>
                     <TableCell className={`text-right font-medium ${(stock.changePercent ?? 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
-                      {formatChange(stock.changePercent)}
+                      <div className="flex items-center justify-end gap-1">
+                        {(stock.changePercent ?? 0) >= 0 ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        {formatChange(stock.changePercent)}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground hidden md:table-cell">{formatVolume(stock.volume)}</TableCell>
                   </TableRow>
@@ -253,7 +256,10 @@ export default function StockList({
                   <TableCell className="font-semibold">{stock.symbol}</TableCell>
                   <TableCell className="text-right font-medium">{formatPrice(stock.price)}</TableCell>
                   <TableCell className={`text-right font-medium ${(stock.changePercent ?? 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
-                    {formatChange(stock.changePercent)}
+                    <div className="flex items-center justify-end gap-1">
+                      {(stock.changePercent ?? 0) >= 0 ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      {formatChange(stock.changePercent)}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right text-muted-foreground hidden md:table-cell">{formatVolume(stock.volume)}</TableCell>
                 </TableRow>

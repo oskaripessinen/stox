@@ -441,12 +441,11 @@ export function formatPoints(points: number): string {
 }
 
 /**
- * Format change percent to display string
+ * Format change percent to display string (no sign, absolute value)
  */
 export function formatChange(changePercent: number | null | undefined): string {
   if (changePercent === null || changePercent === undefined) return "-";
-  const sign = changePercent >= 0 ? "+" : "";
-  return `${sign}${changePercent.toFixed(2)}%`;
+  return `${Math.abs(changePercent).toFixed(2)}%`;
 }
 
 /**

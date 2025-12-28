@@ -224,9 +224,23 @@ export async function getTopMovers(top: number = 5): Promise<TopMovers> {
       return { gainers: [], losers: [] };
     }
     const data = await res.json();
+    
+    const gainers: MarketMover[] = data.gainers || [];
+    const losers: MarketMover[] = data.losers || [];
+
+    // Movers endpoint doesn't return volume, so we need to fetch it separately
+    const allSymbols = [...gainers, ...losers].map(m => m.symbol);
+    if (allSymbols.length > 0) {
+      const quotes = await getMultipleQuotes(allSymbols);
+      const volumeMap = new Map(quotes.map(q => [q.symbol, q.volume]));
+
+      gainers.forEach(m => { m.volume = volumeMap.get(m.symbol) || 0; });
+      losers.forEach(m => { m.volume = volumeMap.get(m.symbol) || 0; });
+    }
+
     return {
-      gainers: data.gainers || [],
-      losers: data.losers || [],
+      gainers,
+      losers,
     };
   } catch (error) {
     console.error("Error fetching top movers:", error);

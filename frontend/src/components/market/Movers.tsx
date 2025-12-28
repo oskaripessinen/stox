@@ -11,15 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronUp, ChevronDown, Loader2 } from "lucide-react";
-import { formatPrice, formatChange, formatMarketCap } from "@/lib/api";
-
-type MarketMover = {
-  symbol: string;
-  price: number;
-  change: number;
-  percent_change: number;
-  marketCap?: number;
-};
+import { formatPrice, formatChange, formatVolume, MarketMover } from "@/lib/api";
 
 function MoverTable({ movers, onSelect, type }: { movers: MarketMover[], onSelect: (symbol: string) => void, type: "gainer" | "loser" }) {
   const changeColor = type === "gainer" ? "text-green-600" : "text-red-600";
@@ -35,7 +27,7 @@ function MoverTable({ movers, onSelect, type }: { movers: MarketMover[], onSelec
           <TableHead>Symbol</TableHead>
           <TableHead className="text-right">Price</TableHead>
           <TableHead className="text-right">Change</TableHead>
-          <TableHead className="text-right">Mkt Cap</TableHead>
+          <TableHead className="text-right">Volume</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -44,7 +36,7 @@ function MoverTable({ movers, onSelect, type }: { movers: MarketMover[], onSelec
             <TableCell className="font-semibold">{stock.symbol}</TableCell>
             <TableCell className="text-right font-medium">{formatPrice(stock.price)}</TableCell>
             <TableCell className={`text-right font-medium ${changeColor}`}>{formatChange(stock.percent_change)}</TableCell>
-            <TableCell className="text-right text-muted-foreground">{stock.marketCap && stock.marketCap > 0 ? formatMarketCap(stock.marketCap) : "-"}</TableCell>
+            <TableCell className="text-right text-muted-foreground">{formatVolume(stock.volume)}</TableCell>
           </TableRow>
         ))}
       </TableBody>

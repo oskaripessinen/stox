@@ -8,7 +8,7 @@ import IndexCards from "@/components/market/IndexCards";
 import Movers from "@/components/market/Movers";
 import StockList from "@/components/market/StockList";
 import { MarketStatusBadge } from "@/components/market/market-status";
-import { getMultipleQuotes, getIndices, getTopMovers, getStockProfile, StockQuote, IndexData, MarketMover } from "@/lib/api";
+import { getMultipleQuotes, getIndices, getTopMovers, StockQuote, IndexData, MarketMover } from "@/lib/api";
 
 const indexSymbols: Record<string, string[]> = {
   sp500: ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM", "V", "JNJ", "WMT", "UNH"],
@@ -55,17 +55,8 @@ export default function Home() {
       setMoversLoading(true);
       try {
         const movers = await getTopMovers(5);
-        const gainerSymbols = movers.gainers.map((m) => m.symbol);
-        const loserSymbols = movers.losers.map((m) => m.symbol);
-
-        const gainerProfiles = await Promise.all(gainerSymbols.map((s) => getStockProfile(s)));
-        const loserProfiles = await Promise.all(loserSymbols.map((s) => getStockProfile(s)));
-
-        const gainersWithCap = movers.gainers.map((g, i) => ({ ...g, marketCap: gainerProfiles[i]?.marketCap ?? undefined }));
-        const losersWithCap = movers.losers.map((l, i) => ({ ...l, marketCap: loserProfiles[i]?.marketCap ?? undefined }));
-
-        setTopGainers(gainersWithCap);
-        setTopLosers(losersWithCap);
+        setTopGainers(movers.gainers);
+        setTopLosers(movers.losers);
       } catch (err) {
         console.error("Failed to fetch movers:", err);
       } finally {

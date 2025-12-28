@@ -97,7 +97,7 @@ export default function IndexCards({ indices, loading }: { indices: IndexPoint[]
               <div className="h-7 w-24 bg-muted animate-pulse rounded mt-2" />
             </CardHeader>
             <CardContent className="pb-2">
-              <div className="h-12 w-full bg-muted animate-pulse rounded" />
+              <div className="h-16 w-full bg-muted animate-pulse rounded" />
             </CardContent>
           </Card>
         ))

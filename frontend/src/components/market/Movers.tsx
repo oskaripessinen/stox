@@ -10,8 +10,33 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronUp, ChevronDown, Loader2 } from "lucide-react";
+import { ChevronUp, ChevronDown } from "lucide-react";
 import { formatPrice, formatChange, formatVolume, MarketMover } from "@/lib/api";
+
+function MoverSkeleton() {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Symbol</TableHead>
+          <TableHead className="text-right">Price</TableHead>
+          <TableHead className="text-right">Change</TableHead>
+          <TableHead className="text-right">Volume</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <TableRow key={i}>
+            <TableCell><div className="h-4 w-12 bg-muted animate-pulse rounded" /></TableCell>
+            <TableCell className="text-right"><div className="h-4 w-16 bg-muted animate-pulse rounded ml-auto" /></TableCell>
+            <TableCell className="text-right"><div className="h-4 w-12 bg-muted animate-pulse rounded ml-auto" /></TableCell>
+            <TableCell className="text-right"><div className="h-4 w-14 bg-muted animate-pulse rounded ml-auto" /></TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
 
 function MoverTable({ movers, onSelect, type }: { movers: MarketMover[], onSelect: (symbol: string) => void, type: "gainer" | "loser" }) {
   const changeColor = type === "gainer" ? "text-green-600" : "text-red-600";
@@ -66,9 +91,7 @@ export default function Movers({
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex justify-center items-center h-full py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
+            <MoverSkeleton />
           ) : (
             <MoverTable movers={topGainers} onSelect={onSelect} type="gainer" />
           )}
@@ -84,9 +107,7 @@ export default function Movers({
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex justify-center items-center h-full py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
+            <MoverSkeleton />
           ) : (
             <MoverTable movers={topLosers} onSelect={onSelect} type="loser" />
           )}

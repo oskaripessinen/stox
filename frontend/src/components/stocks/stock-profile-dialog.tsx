@@ -67,9 +67,8 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
   const chartRef = useRef<HTMLDivElement>(null);
 
   const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
-  const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [createWatchlistOpen, setCreateWatchlistOpen] = useState(false);
-
+  const [addToWatchlistModal, setAddToWatchlistModal] = useState(false);
   useEffect(() => {
     if (open) {
       getWatchlists().then(setWatchlists);
@@ -83,11 +82,9 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
       const updated = await getWatchlists();
       setWatchlists(updated);
       
-      // Optionally add the current stock to the new watchlist immediately
       if (symbol) {
         await addToWatchlist(newWatchlist.id, symbol);
         toast.success(`Added ${symbol} to ${name}`);
-        // Refresh again to show the checkmark
         getWatchlists().then(setWatchlists);
       }
     } else {
@@ -108,7 +105,6 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
       toast.success(`Added ${symbol} to ${watchlistName}`);
     }
     
-    // Refresh watchlists
     const updated = await getWatchlists();
     setWatchlists(updated);
   };
@@ -182,6 +178,11 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
     }
   }
 
+  const isWatched = useMemo(() => {
+    if (!symbol) return false;
+    return watchlists.some(wl => wl.items.some(i => i.symbol === symbol));
+  }, [watchlists, symbol]);
+
   const chartStats = useMemo(() => {
     if (bars.length < 2) return null;
     
@@ -248,15 +249,21 @@ export function StockProfileDialog({ symbol, open, onOpenChange }: StockProfileD
                   <div className="flex items-center gap-1">
                     <span className="text-2xl font-semibold">{symbol}</span>
                     <SignedIn>
-                      <DropdownMenu>
+                      <DropdownMenu open={addToWatchlistModal} onOpenChange={setAddToWatchlistModal}>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="link" size="icon" className="group h-8 w-8 text-primary transition-all">
-                            <Star className={`h-7 w-7 text-primary transition-all duration-200 ${watchlists.some(w => w.items.some(i => i.symbol === symbol)) ? "fill-primary" : "fill-none group-hover:fill-primary"}`} />
+                          <Button 
+                            variant="link" 
+                            size="icon" 
+                            className="group h-8 w-8 text-primary transition-all"
+                          >
+                            <Star 
+                              className={`h-7 w-7 text-primary transition-all duration-200 
+                                        group-hover:fill-primary 
+                                        ${isWatched || addToWatchlistModal ? "fill-primary" : ""}`}
+                            />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start">
-                          <DropdownMenuLabel>Add to Watchlist</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
                           <DropdownMenuItem onSelect={() => setCreateWatchlistOpen(true)}>
                             <div className="flex items-center gap-2">
                               <Plus className="h-4 w-4" />

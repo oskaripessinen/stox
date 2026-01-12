@@ -11,7 +11,7 @@
     "containerDefinitions": [
         {
             "name": "stox-backend",
-            "image": "622718430431.dkr.ecr.eu-north-1.amazonaws.com/stox-backend:latest",
+            "image": "622718430431.dkr.ecr.eu-north-1.amazonaws.com/stox:latest",
             "essential": true,
             "portMappings": [
                 {

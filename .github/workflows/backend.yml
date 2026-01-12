@@ -14,7 +14,7 @@ on:
 
 env:
   AWS_REGION: eu-north-1
-  ECR_REPOSITORY: stox-backend
+  ECR_REPOSITORY: stox
   ECS_SERVICE: stox-backend-service
   ECS_CLUSTER: stox-cluster
   ECS_TASK_DEFINITION: backend/task-definition.json
@@ -34,14 +34,11 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          # Use the workspace root lockfile because this repo uses npm workspaces
           cache-dependency-path: package-lock.json
       - name: Install dependencies
-        # Run npm ci at repo root where the combined workspace lockfile lives
         run: npm ci
         working-directory: .
       - name: Ensure DATABASE_URL is available for Prisma
-        # Create a .env file for Prisma using a repo secret if available; otherwise use a safe local placeholder
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
@@ -88,7 +85,6 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          # MUUTA KOMENTO: Kontekstiksi . (juuri) viimeisenä argumenttina
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest -f backend/Dockerfile .
           
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG

@@ -49,6 +49,27 @@
                 "retries": 3,
                 "startPeriod": 60
             }
+        },
+        {
+            "name": "valkey",
+            "image": "valkey/valkey:8",
+            "essential": true,
+            "portMappings": [
+                {
+                    "containerPort": 6379,
+                    "hostPort": 6379,
+                    "protocol": "tcp"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/stox-backend",
+                    "awslogs-region": "eu-north-1",
+                    "awslogs-stream-prefix": "valkey",
+                    "awslogs-create-group": "true"
+                }
+            }
         }
     ]
 }

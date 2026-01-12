@@ -14,9 +14,9 @@ on:
 
 env:
   AWS_REGION: eu-north-1
-  ECR_REPOSITORY: stox
+  ECR_REPOSITORY: stox-backend
   ECS_SERVICE: stox-backend-service
-  ECS_CLUSTER: stox-cluster
+  ECS_CLUSTER: stox
   ECS_TASK_DEFINITION: backend/task-definition.json
   CONTAINER_NAME: stox-backend
 
